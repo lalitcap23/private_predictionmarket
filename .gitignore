@@ -1,0 +1,20 @@
+.anchor
+.DS_Store
+target
+**/*.rs.bk
+node_modules
+test-ledger
+.yarn
+
+# Keypairs - NEVER commit
+*-keypair.json
+*.keypair
+id.json
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Articles (not part of repo)
+DEVTO_ARTICLE.md
