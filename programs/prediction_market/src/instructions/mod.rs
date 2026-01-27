@@ -3,7 +3,9 @@ pub mod claim_winnings;
 pub mod create_market;
 pub mod initialize;
 pub mod pause;
+pub mod reveal_and_claim;
 pub mod place_bet;
+pub mod stake_and_commit;
 pub mod resolve_market;
 pub mod update_config;
 
@@ -19,7 +21,11 @@ pub use initialize::*;
 #[allow(ambiguous_glob_reexports)]
 pub use pause::*;
 #[allow(ambiguous_glob_reexports)]
+pub use reveal_and_claim::*;
+#[allow(ambiguous_glob_reexports)]
 pub use place_bet::*;
+#[allow(ambiguous_glob_reexports)]
+pub use stake_and_commit::*;
 #[allow(ambiguous_glob_reexports)]
 pub use resolve_market::*;
 #[allow(ambiguous_glob_reexports)]

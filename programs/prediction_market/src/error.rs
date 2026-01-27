@@ -40,4 +40,12 @@ pub enum PredictionMarketError {
     AlreadyClaimed,
     #[msg("Overflow error")]
     Overflow,
+    #[msg("User has already committed in this market")]
+    AlreadyCommitted,
+    #[msg("User has not committed in this market")]
+    NotCommitted,
+    #[msg("User has already revealed in this market")]
+    AlreadyRevealed,
+    #[msg("Invalid commitment reveal data")]
+    InvalidCommitment,
 }

@@ -1,9 +1,3 @@
-//! Simple Binary Prediction Market Program for Solana
-//!
-//! THIS PROGRAM IS FOR EDUCATIONAL PURPOSES ONLY. IT IS UNAUDITED AND
-//! SHOULD NOT BE USED IN PRODUCTION. THE AUTHORS ARE NOT RESPONSIBLE FOR
-//! ANY DAMAGES OR LOSSES THAT MAY RESULT FROM ITS USE.
-
 pub mod constants;
 pub mod error;
 pub mod instructions;
@@ -15,7 +9,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("6nPzFvBm1Eezmoa82w82XX3L6qNy1StVXDMf7QnF8zv");
+declare_id!("GF2HqG2UJWmB7YPGsyqAg1p5wWaRpufKfp9anM7oWTet");
 
 #[program]
 pub mod prediction_market {
@@ -86,5 +80,25 @@ pub mod prediction_market {
     /// Claim winnings from a resolved or cancelled market
     pub fn claim_winnings(ctx: Context<ClaimWinnings>, market_id: u64) -> Result<()> {
         instructions::claim_winnings::handler(ctx, market_id)
+    }
+
+    /// Stake tokens and commit to a blind prediction (commit-reveal scheme)
+    pub fn stake_and_commit(
+        ctx: Context<StakeAndCommit>,
+        market_id: u64,
+        amount: u64,
+        commitment: [u8; 32],
+    ) -> Result<()> {
+        instructions::stake_and_commit::handler(ctx, market_id, amount, commitment)
+    }
+
+    /// Reveal the committed outcome and claim fixed-odds winnings (5x payout)
+    pub fn reveal_and_claim(
+        ctx: Context<RevealAndClaim>,
+        market_id: u64,
+        outcome: Outcome,
+        salt: [u8; 32],
+    ) -> Result<()> {
+        instructions::reveal_and_claim::handler(ctx, market_id, outcome, salt)
     }
 }

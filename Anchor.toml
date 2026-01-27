@@ -5,11 +5,11 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-prediction_market = "6nPzFvBm1Eezmoa82w82XX3L6qNy1StVXDMf7QnF8zv"
-
 [programs.devnet]
 prediction_market = "6nPzFvBm1Eezmoa82w82XX3L6qNy1StVXDMf7QnF8zv"
+
+[programs.localnet]
+prediction_market = "GF2HqG2UJWmB7YPGsyqAg1p5wWaRpufKfp9anM7oWTet"
 
 [registry]
 url = "https://api.apr.dev"
