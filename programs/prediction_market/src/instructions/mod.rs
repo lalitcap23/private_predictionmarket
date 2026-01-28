@@ -1,6 +1,7 @@
 pub mod cancel_market;
 pub mod claim_winnings;
 pub mod create_market;
+pub mod forfeit_unrevealed;
 pub mod initialize;
 pub mod pause;
 pub mod reveal_and_claim;
@@ -16,6 +17,8 @@ pub use cancel_market::*;
 pub use claim_winnings::*;
 #[allow(ambiguous_glob_reexports)]
 pub use create_market::*;
+#[allow(ambiguous_glob_reexports)]
+pub use forfeit_unrevealed::*;
 #[allow(ambiguous_glob_reexports)]
 pub use initialize::*;
 #[allow(ambiguous_glob_reexports)]

@@ -98,10 +98,18 @@ pub fn handler(
     // Resolve market
     market.state = MarketState::Resolved;
     market.winning_outcome = final_outcome;
+    
+    // Set reveal deadline: 2 weeks (14 days) after resolution time
+    // 14 days = 14 * 24 * 60 * 60 = 1,209,600 seconds
+    const TWO_WEEKS_SECONDS: i64 = 14 * 24 * 60 * 60;
+    market.reveal_deadline = market.resolution_time
+        .checked_add(TWO_WEEKS_SECONDS)
+        .ok_or(PredictionMarketError::Overflow)?;
 
     msg!("Market resolved");
     msg!("Market ID: {}", market.id);
     msg!("Winning Outcome: {:?}", final_outcome);
+    msg!("Reveal Deadline: {}", market.reveal_deadline);
     msg!("YES Pool: {}", market.yes_pool);
     msg!("NO Pool: {}", market.no_pool);
 

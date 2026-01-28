@@ -48,4 +48,10 @@ pub enum PredictionMarketError {
     AlreadyRevealed,
     #[msg("Invalid commitment reveal data")]
     InvalidCommitment,
+    #[msg("Reveal deadline has passed")]
+    RevealDeadlineExpired,
+    #[msg("Reveal deadline has not passed yet")]
+    RevealDeadlineNotPassed,
+    #[msg("No unrevealed stakes to forfeit")]
+    NoUnrevealedStakes,
 }

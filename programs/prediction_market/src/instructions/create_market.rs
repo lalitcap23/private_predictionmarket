@@ -121,6 +121,7 @@ pub fn handler(
     market.vault_bump = ctx.bumps.market_vault;
     market.pyth_price_feed_id = pyth_price_feed_id;
     market.price_threshold = price_threshold;
+    market.reveal_deadline = 0; // Set when market is resolved
 
     msg!("Market created");
     msg!("Market ID: {}", market.id);

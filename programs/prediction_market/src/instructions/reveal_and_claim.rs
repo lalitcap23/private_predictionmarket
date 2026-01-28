@@ -58,6 +58,7 @@ pub fn handler(
 ) -> Result<()> {
     let market = &ctx.accounts.market;
     let position = &mut ctx.accounts.user_position;
+    let clock = Clock::get()?;
 
     // Ensure user actually committed
     require!(
@@ -65,6 +66,16 @@ pub fn handler(
         PredictionMarketError::NotCommitted
     );
     require!(!position.revealed, PredictionMarketError::AlreadyRevealed);
+    
+    // Check reveal deadline has not passed
+    require!(
+        market.reveal_deadline > 0, // Market must be resolved
+        PredictionMarketError::MarketNotFinalized
+    );
+    require!(
+        clock.unix_timestamp <= market.reveal_deadline,
+        PredictionMarketError::RevealDeadlineExpired
+    );
 
     // Recompute the commitment using SHA256 (same as Solana's hashv)
     let market_id_bytes = market_id.to_le_bytes();

@@ -55,6 +55,10 @@ pub struct Market {
     /// If price >= threshold, YES wins; else NO wins
     /// None if manual resolution
     pub price_threshold: Option<i64>,
+    /// Reveal deadline (unix timestamp) - deadline for users to reveal after market resolution
+    /// Set to resolution_time + 2 weeks when market is resolved
+    /// 0 if market not yet resolved
+    pub reveal_deadline: i64,
 }
 
 impl Market {

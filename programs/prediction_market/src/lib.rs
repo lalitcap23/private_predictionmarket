@@ -118,4 +118,13 @@ pub mod prediction_market {
     ) -> Result<()> {
         instructions::reveal_and_claim::handler(ctx, market_id, outcome, salt)
     }
+
+    /// Forfeit unrevealed stakes to protocol after reveal deadline (admin only)
+    /// Transfers unrevealed committed stakes to protocol fee recipient
+    pub fn forfeit_unrevealed(
+        ctx: Context<ForfeitUnrevealed>,
+        market_id: u64,
+    ) -> Result<()> {
+        instructions::forfeit_unrevealed::handler(ctx, market_id)
+    }
 }
