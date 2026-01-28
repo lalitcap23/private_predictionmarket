@@ -49,6 +49,12 @@ pub struct Market {
     pub bump: u8,
     /// Vault bump seed
     pub vault_bump: u8,
+    /// Pyth price feed ID (32 bytes) - None if manual resolution
+    pub pyth_price_feed_id: Option<[u8; 32]>,
+    /// Price threshold for YES outcome (in Pyth's native format with exponent)
+    /// If price >= threshold, YES wins; else NO wins
+    /// None if manual resolution
+    pub price_threshold: Option<i64>,
 }
 
 impl Market {

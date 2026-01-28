@@ -68,6 +68,8 @@ pub fn handler(
     question: String,
     resolution_time: i64,
     fee_amount: u64,
+    pyth_price_feed_id: Option<[u8; 32]>,
+    price_threshold: Option<i64>,
 ) -> Result<()> {
     // Validations
     require!(!question.is_empty(), PredictionMarketError::EmptyQuestion);
@@ -117,6 +119,8 @@ pub fn handler(
     market.config_max_fee_bps = config.max_fee_bps;
     market.bump = ctx.bumps.market;
     market.vault_bump = ctx.bumps.market_vault;
+    market.pyth_price_feed_id = pyth_price_feed_id;
+    market.price_threshold = price_threshold;
 
     msg!("Market created");
     msg!("Market ID: {}", market.id);

@@ -44,13 +44,30 @@ pub mod prediction_market {
     }
 
     /// Create a new prediction market
+    /// 
+    /// For Pyth oracle markets:
+    /// - pyth_price_feed_id: 32-byte price feed ID from Pyth (e.g., BTC/USD feed ID)
+    /// - price_threshold: Price threshold in Pyth's native format (accounting for exponent)
+    /// 
+    /// For manual resolution markets:
+    /// - pyth_price_feed_id: None
+    /// - price_threshold: None
     pub fn create_market(
         ctx: Context<CreateMarket>,
         question: String,
         resolution_time: i64,
         fee_amount: u64,
+        pyth_price_feed_id: Option<[u8; 32]>,
+        price_threshold: Option<i64>,
     ) -> Result<()> {
-        instructions::create_market::handler(ctx, question, resolution_time, fee_amount)
+        instructions::create_market::handler(
+            ctx,
+            question,
+            resolution_time,
+            fee_amount,
+            pyth_price_feed_id,
+            price_threshold,
+        )
     }
 
     /// Place a bet on a market
