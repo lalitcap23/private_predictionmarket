@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use pyth_solana_receiver_sdk::price_update::PriceUpdateV2;
 
+use crate::constants::SOL_USD_FEED_ID;
 use crate::error::PredictionMarketError;
 use crate::state::{Config, Market, MarketState, Outcome};
 
@@ -26,15 +27,15 @@ pub struct ResolveMarket<'info> {
     )]
     pub market: Account<'info, Market>,
 
-    /// Pyth price update account (optional - only needed if market uses Pyth oracle)
-    /// CHECK: Validated in handler if market.pyth_price_feed_id is Some
-    pub price_update: Option<Account<'info, PriceUpdateV2>>,
+    /// Pyth price update account for SOL/USD feed
+    /// CHECK: Validated in handler - must be a valid PriceUpdateV2 for SOL/USD
+    pub price_update: Account<'info, PriceUpdateV2>,
 }
 
 pub fn handler(
     ctx: Context<ResolveMarket>,
     _market_id: u64,
-    winning_outcome: Outcome, // Only used if manual resolution (pyth_price_feed_id is None)
+    _winning_outcome: Outcome, // Not used - all markets use Pyth oracle
 ) -> Result<()> {
     let market = &mut ctx.accounts.market;
     let clock = Clock::get()?;
@@ -52,67 +53,50 @@ pub fn handler(
     //     PredictionMarketError::NoOpposition
     // );
 
-    // Determine winning outcome
-    let final_outcome = if let Some(feed_id) = market.pyth_price_feed_id {
-        // Pyth oracle-based resolution
-        require!(
-            ctx.accounts.price_update.is_some(),
-            PredictionMarketError::PythPriceUpdateRequired
-        );
-
-        let price_update = ctx.accounts.price_update.as_ref().unwrap();
-        
-        // Maximum age for price update (30 seconds)
-        let maximum_age: u64 = 30;
-        
-        // Get price from Pyth price update account
-        // This will fail if:
-        // - Price update is older than maximum_age
-        // - Price feed ID doesn't match
-        let price = price_update.get_price_no_older_than(
-            &clock,
-            maximum_age,
-            &feed_id,
-        ).map_err(|e| {
-            msg!("Pyth price fetch error: {:?}", e);
-            if e.to_string().contains("too old") {
-                PredictionMarketError::PythPriceTooOld
-            } else if e.to_string().contains("feed") {
-                PredictionMarketError::PythFeedIdMismatch
-            } else {
-                PredictionMarketError::InvalidOutcome
-            }
-        })?;
-
-        msg!("Pyth oracle resolution:");
-        msg!("  Price feed ID: {:?}", feed_id);
-        msg!("  Current price: ({} ± {}) * 10^{}", price.price, price.conf, price.exponent);
-        msg!("  Price threshold: {:?}", market.price_threshold);
-
-        // Compare price to threshold
-        if let Some(threshold) = market.price_threshold {
-            // If price >= threshold, YES wins; else NO wins
-            let outcome = if price.price >= threshold {
-                Outcome::Yes
-            } else {
-                Outcome::No
-            };
-            msg!("  Price {} threshold -> Outcome: {:?}", 
-                 if price.price >= threshold { ">=" } else { "<" }, 
-                 outcome);
-            outcome
+    // All markets use Pyth oracle for SOL/USD price resolution
+    let price_update = &ctx.accounts.price_update;
+    
+    // Maximum age for price update (30 seconds)
+    let maximum_age: u64 = 30;
+    
+    // Get price from Pyth price update account using hardcoded SOL/USD feed ID
+    // This will fail if:
+    // - Price update is older than maximum_age
+    // - Price feed ID doesn't match SOL/USD feed
+    let price = price_update.get_price_no_older_than(
+        &clock,
+        maximum_age,
+        &SOL_USD_FEED_ID,
+    ).map_err(|e| {
+        msg!("Pyth price fetch error: {:?}", e);
+        if e.to_string().contains("too old") {
+            PredictionMarketError::PythPriceTooOld
+        } else if e.to_string().contains("feed") {
+            PredictionMarketError::PythFeedIdMismatch
         } else {
-            return Err(PredictionMarketError::InvalidOutcome.into());
-        }
-    } else {
-        // Manual resolution (backward compatible)
-        require!(
-            winning_outcome == Outcome::Yes || winning_outcome == Outcome::No,
             PredictionMarketError::InvalidOutcome
-        );
-        msg!("Manual resolution: {:?}", winning_outcome);
-        winning_outcome
+        }
+    })?;
+
+    msg!("Pyth oracle resolution (SOL/USD):");
+    msg!("  Price feed ID: {:?}", SOL_USD_FEED_ID);
+    msg!("  Current price: ({} ± {}) * 10^{}", price.price, price.conf, price.exponent);
+    
+    // Get threshold from market
+    let threshold = market.price_threshold.ok_or(PredictionMarketError::InvalidOutcome)?;
+    msg!("  Price threshold: {}", threshold);
+
+    // Compare price to threshold
+    // If price >= threshold, YES wins; else NO wins
+    let final_outcome = if price.price >= threshold {
+        Outcome::Yes
+    } else {
+        Outcome::No
     };
+    
+    msg!("  SOL price {} threshold -> Outcome: {:?}", 
+         if price.price >= threshold { ">=" } else { "<" }, 
+         final_outcome);
 
     // Resolve market
     market.state = MarketState::Resolved;

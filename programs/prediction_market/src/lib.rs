@@ -45,27 +45,21 @@ pub mod prediction_market {
 
     /// Create a new prediction market
     /// 
-    /// For Pyth oracle markets:
-    /// - pyth_price_feed_id: 32-byte price feed ID from Pyth (e.g., BTC/USD feed ID)
+    /// All markets use Pyth oracle for SOL/USD price resolution
     /// - price_threshold: Price threshold in Pyth's native format (accounting for exponent)
-    /// 
-    /// For manual resolution markets:
-    /// - pyth_price_feed_id: None
-    /// - price_threshold: None
+    ///   Example: For $160 threshold with exponent -8, use 160 * 10^8 = 16000000000
     pub fn create_market(
         ctx: Context<CreateMarket>,
         question: String,
         resolution_time: i64,
         fee_amount: u64,
-        pyth_price_feed_id: Option<[u8; 32]>,
-        price_threshold: Option<i64>,
+        price_threshold: i64,
     ) -> Result<()> {
         instructions::create_market::handler(
             ctx,
             question,
             resolution_time,
             fee_amount,
-            pyth_price_feed_id,
             price_threshold,
         )
     }
