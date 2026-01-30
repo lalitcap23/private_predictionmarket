@@ -54,4 +54,10 @@ pub enum PredictionMarketError {
     RevealDeadlineNotPassed,
     #[msg("No unrevealed stakes to forfeit")]
     NoUnrevealedStakes,
+    #[msg("Pyth price update account required for oracle-based markets")]
+    PythPriceUpdateRequired,
+    #[msg("Pyth price update is too old")]
+    PythPriceTooOld,
+    #[msg("Pyth price feed ID mismatch")]
+    PythFeedIdMismatch,
 }

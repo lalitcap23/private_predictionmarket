@@ -84,6 +84,24 @@ pub fn handler(
         PredictionMarketError::InvalidResolutionTime
     );
 
+    // Validate Pyth oracle parameters
+    // If pyth_price_feed_id is provided, price_threshold must also be provided
+    if pyth_price_feed_id.is_some() {
+        require!(
+            price_threshold.is_some(),
+            PredictionMarketError::InvalidOutcome
+        );
+        msg!("Market configured with Pyth oracle");
+        msg!("Price feed ID: {:?}", pyth_price_feed_id);
+        msg!("Price threshold: {:?}", price_threshold);
+    } else {
+        // If price_threshold is provided without feed_id, that's invalid
+        require!(
+            price_threshold.is_none(),
+            PredictionMarketError::InvalidOutcome
+        );
+    }
+
     // Transfer fee if applicable
     if fee_amount > 0 {
         let cpi_accounts = Transfer {
@@ -127,6 +145,16 @@ pub fn handler(
     msg!("Market ID: {}", market.id);
     msg!("Question: {}", market.question);
     msg!("Resolution Time: {}", market.resolution_time);
+    
+    // Log Pyth oracle configuration if present
+    if market.pyth_price_feed_id.is_some() {
+        msg!("Pyth Oracle: Enabled");
+        msg!("  Feed ID: {:?}", market.pyth_price_feed_id);
+        msg!("  Price Threshold: {:?}", market.price_threshold);
+        msg!("  Resolution: If price >= threshold, YES wins; else NO wins");
+    } else {
+        msg!("Resolution: Manual (admin-controlled)");
+    }
 
     Ok(())
 }

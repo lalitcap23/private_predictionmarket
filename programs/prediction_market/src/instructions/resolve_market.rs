@@ -57,7 +57,7 @@ pub fn handler(
         // Pyth oracle-based resolution
         require!(
             ctx.accounts.price_update.is_some(),
-            PredictionMarketError::InvalidOutcome
+            PredictionMarketError::PythPriceUpdateRequired
         );
 
         let price_update = ctx.accounts.price_update.as_ref().unwrap();
@@ -66,23 +66,41 @@ pub fn handler(
         let maximum_age: u64 = 30;
         
         // Get price from Pyth price update account
+        // This will fail if:
+        // - Price update is older than maximum_age
+        // - Price feed ID doesn't match
         let price = price_update.get_price_no_older_than(
             &clock,
             maximum_age,
             &feed_id,
-        )?;
+        ).map_err(|e| {
+            msg!("Pyth price fetch error: {:?}", e);
+            if e.to_string().contains("too old") {
+                PredictionMarketError::PythPriceTooOld
+            } else if e.to_string().contains("feed") {
+                PredictionMarketError::PythFeedIdMismatch
+            } else {
+                PredictionMarketError::InvalidOutcome
+            }
+        })?;
 
-        msg!("Pyth price: ({} ± {}) * 10^{}", price.price, price.conf, price.exponent);
-        msg!("Price threshold: {:?}", market.price_threshold);
+        msg!("Pyth oracle resolution:");
+        msg!("  Price feed ID: {:?}", feed_id);
+        msg!("  Current price: ({} ± {}) * 10^{}", price.price, price.conf, price.exponent);
+        msg!("  Price threshold: {:?}", market.price_threshold);
 
         // Compare price to threshold
         if let Some(threshold) = market.price_threshold {
             // If price >= threshold, YES wins; else NO wins
-            if price.price >= threshold {
+            let outcome = if price.price >= threshold {
                 Outcome::Yes
             } else {
                 Outcome::No
-            }
+            };
+            msg!("  Price {} threshold -> Outcome: {:?}", 
+                 if price.price >= threshold { ">=" } else { "<" }, 
+                 outcome);
+            outcome
         } else {
             return Err(PredictionMarketError::InvalidOutcome.into());
         }
@@ -92,6 +110,7 @@ pub fn handler(
             winning_outcome == Outcome::Yes || winning_outcome == Outcome::No,
             PredictionMarketError::InvalidOutcome
         );
+        msg!("Manual resolution: {:?}", winning_outcome);
         winning_outcome
     };
 
