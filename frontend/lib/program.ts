@@ -1,37 +1,58 @@
-import { Program, AnchorProvider, Idl } from "@coral-xyz/anchor";
-import { Connection, PublicKey, Commitment } from "@solana/web3.js";
-import { useWallet } from "@solana/wallet-adapter-react";
+import { Program, AnchorProvider, Idl, BN } from "@coral-xyz/anchor";
+import { Connection, PublicKey, Commitment, Transaction } from "@solana/web3.js";
+import { useWallets } from "@privy-io/react-auth";
 import { useMemo } from "react";
 import idl from "./idl.json";
 import { PROGRAM_ID, RPC_ENDPOINT } from "@/config/solana";
 import { PredictionMarket } from "@/types/prediction_market";
+import { createPrivyWalletAdapter } from "./privyWalletAdapter";
 
 const commitment: Commitment = "confirmed";
 
 export function useProgram() {
-  const wallet = useWallet();
+  const { wallets } = useWallets();
+  
+  // Find the first Solana wallet
+  const solanaWallet = useMemo(() => {
+    return wallets.find((w) => w.walletClientType === "privy" && w.chainId.startsWith("solana:"));
+  }, [wallets]);
 
   const program = useMemo(() => {
-    if (!wallet.publicKey || !wallet.signTransaction || !wallet.signAllTransactions) {
+    if (!solanaWallet) {
       return null;
     }
 
     try {
       const connection = new Connection(RPC_ENDPOINT, commitment);
       
+      // Create Privy-compatible wallet adapter
+      const walletAdapter = createPrivyWalletAdapter(solanaWallet as any);
+      
+      // Create a custom provider that uses Privy's signAndSendTransaction
       const provider = new AnchorProvider(
         connection,
         {
-          publicKey: wallet.publicKey,
-          signTransaction: wallet.signTransaction,
-          signAllTransactions: wallet.signAllTransactions,
+          ...walletAdapter,
+          // Override sendAndConfirm to use Privy's signAndSendTransaction
+          sendAndConfirm: async (tx: Transaction, signers?: any[]) => {
+            if (walletAdapter.signAndSendTransaction) {
+              const signature = await walletAdapter.signAndSendTransaction(tx);
+              await connection.confirmTransaction(signature, commitment);
+              return signature;
+            }
+            throw new Error("signAndSendTransaction not available");
+          },
         } as any,
         { commitment }
       );
 
-      const program = new Program(
+      // Create program instance
+      // Program constructor: new Program(idl, programId, provider)
+      const programIdPubkey = new PublicKey(PROGRAM_ID);
+      // TypeScript has issues with Program constructor types, so we use type assertion
+      const program = new (Program as any)(
         idl as Idl,
-        PROGRAM_ID,
+        programIdPubkey,
         provider
       ) as Program<PredictionMarket>;
 
@@ -40,9 +61,9 @@ export function useProgram() {
       console.error("Error creating program:", error);
       return null;
     }
-  }, [wallet.publicKey, wallet.signTransaction, wallet.signAllTransactions]);
+  }, [solanaWallet]);
 
-  return program;
+  return { program, wallet: solanaWallet };
 }
 
 export function useConnection() {
