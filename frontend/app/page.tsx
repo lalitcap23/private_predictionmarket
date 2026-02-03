@@ -4,6 +4,12 @@ import { usePrivy, useWallets } from "@privy-io/react-auth";
 import { useProgram, useConnection } from "@/lib/program";
 import { useState, useEffect } from "react";
 import { PublicKey } from "@solana/web3.js";
+import MarketList from "@/components/MarketList";
+import CreateMarket from "@/components/CreateMarket";
+import StakeAndCommit from "@/components/StakeAndCommit";
+import RevealAndClaim from "@/components/RevealAndClaim";
+import ClaimWinnings from "@/components/ClaimWinnings";
+import AdminActions from "@/components/AdminActions";
 
 export default function Home() {
   const { ready, authenticated, login, logout } = usePrivy();
@@ -11,11 +17,11 @@ export default function Home() {
   const { program, wallet: solanaWallet } = useProgram();
   const connection = useConnection();
   const [config, setConfig] = useState<any>(null);
-  const [markets, setMarkets] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState<"markets" | "create" | "stake" | "reveal" | "claim" | "admin">("markets");
 
   // Find Solana wallet
   const solanaWalletAddress = solanaWallet?.address;
@@ -94,6 +100,24 @@ export default function Home() {
     }
   };
 
+  const tabs = [
+    { id: "markets", label: "Markets" },
+    { id: "create", label: "Create Market" },
+    { id: "stake", label: "Stake & Commit" },
+    { id: "reveal", label: "Reveal & Claim" },
+    { id: "claim", label: "Claim Winnings" },
+  ];
+
+  // Add admin tab if user is admin
+  if (config && solanaWalletAddress) {
+    const userPubkey = new PublicKey(solanaWalletAddress);
+    if (userPubkey.equals(config.admin)) {
+      if (!tabs.find(t => t.id === "admin")) {
+        tabs.push({ id: "admin", label: "Admin" });
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800">
       <div className="container mx-auto px-4 py-8">
@@ -104,10 +128,18 @@ export default function Home() {
               Prediction Market
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Blind Binary Prediction Market on Solana
+              Blind Binary Prediction Market on Solana with Pyth Oracle
             </p>
           </div>
-          <div>
+          <div className="flex items-center gap-4">
+            {solanaWalletAddress && balance !== null && (
+              <div className="rounded-lg bg-white px-4 py-2 shadow dark:bg-gray-800">
+                <span className="text-sm text-gray-600 dark:text-gray-400">Balance: </span>
+                <span className="font-semibold text-gray-900 dark:text-white">
+                  {balance.toFixed(4)} SOL
+                </span>
+              </div>
+            )}
             {ready && !authenticated && (
               <button
                 onClick={handleLogin}
@@ -144,190 +176,106 @@ export default function Home() {
 
         {/* Connection Status */}
         <div className="mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
-          <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-            Connection Status
-          </h2>
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Wallet:</span>
-              <span className={authenticated && solanaWalletAddress ? "text-green-600" : "text-red-600"}>
-                {authenticated && solanaWalletAddress ? "Connected" : "Not Connected"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-600 dark:text-gray-400">Program:</span>
-              <span className={program ? "text-green-600" : "text-red-600"}>
-                {program ? "Ready" : "Not Ready"}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Wallet Details */}
-        {solanaWalletAddress && (
-          <div className="mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
-            <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-              Connected Wallet
-            </h2>
-            <div className="space-y-4">
-              {/* Wallet Address */}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-6">
               <div>
-                <label className="mb-2 block text-sm font-medium text-gray-600 dark:text-gray-400">
-                  Wallet Address
-                </label>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 rounded-lg bg-gray-50 p-3 dark:bg-gray-700">
-                    <p className="break-all font-mono text-sm text-gray-900 dark:text-white">
-                      {solanaWalletAddress}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => copyToClipboard(solanaWalletAddress)}
-                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm text-white hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600"
-                    title="Copy address"
-                  >
-                    {copied ? "✓ Copied" : "Copy"}
-                  </button>
-                </div>
-              </div>
-
-              {/* Wallet Type */}
-              {solanaWallet && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Wallet Type:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {solanaWallet.walletClientType === "privy" 
-                      ? "Privy Embedded Wallet" 
-                      : solanaWallet.walletClientType || "Unknown"}
-                  </span>
-                </div>
-              )}
-
-              {/* Chain */}
-              {solanaWallet && (
-                <div className="flex items-center justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">Network:</span>
-                  <span className="font-medium text-gray-900 dark:text-white">
-                    {solanaWallet.chainId === "solana:devnet" 
-                      ? "Solana Devnet" 
-                      : solanaWallet.chainId === "solana:mainnet"
-                      ? "Solana Mainnet"
-                      : solanaWallet.chainId}
-                  </span>
-                </div>
-              )}
-
-              {/* Balance */}
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Balance:</span>
-                <span className="font-medium text-gray-900 dark:text-white">
-                  {balance !== null ? (
-                    <span>{balance.toFixed(4)} SOL</span>
-                  ) : (
-                    <span className="text-gray-400">Loading...</span>
-                  )}
+                <span className="text-sm text-gray-600 dark:text-gray-400">Wallet: </span>
+                <span className={authenticated && solanaWalletAddress ? "font-semibold text-green-600" : "font-semibold text-red-600"}>
+                  {authenticated && solanaWalletAddress ? "Connected" : "Not Connected"}
                 </span>
               </div>
-
-              {/* Explorer Link */}
-              <div className="pt-2">
+              <div>
+                <span className="text-sm text-gray-600 dark:text-gray-400">Program: </span>
+                <span className={program ? "font-semibold text-green-600" : "font-semibold text-red-600"}>
+                  {program ? "Ready" : "Not Ready"}
+                </span>
+              </div>
+              {config && (
+                <div>
+                  <span className="text-sm text-gray-600 dark:text-gray-400">Markets: </span>
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {config.marketCounter.toString()}
+                  </span>
+                </div>
+              )}
+            </div>
+            {solanaWalletAddress && (
+              <div className="text-right">
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {solanaWalletAddress.slice(0, 8)}...{solanaWalletAddress.slice(-8)}
+                </p>
                 <a
                   href={getExplorerUrl(solanaWalletAddress)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                  className="text-xs text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"
                 >
-                  <svg
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                    />
-                  </svg>
-                  View on Solana Explorer
+                  View on Explorer
                 </a>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Config Info */}
-        {config && (
-          <div className="mb-8 rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
-            <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-white">
-              Program Configuration
-            </h2>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Admin:</span>
-                <span className="font-mono text-sm text-gray-900 dark:text-white">
-                  {config.admin.toString().slice(0, 8)}...
-                  {config.admin.toString().slice(-8)}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">
-                  Market Counter:
-                </span>
-                <span className="text-gray-900 dark:text-white">
-                  {config.marketCounter.toString()}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Paused:</span>
-                <span className={config.paused ? "text-red-600" : "text-green-600"}>
-                  {config.paused ? "Yes" : "No"}
-                </span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Features */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-              Create Market
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Create a new SOL price prediction market with Pyth oracle
-            </p>
-          </div>
-          <div className="rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-              Stake & Commit
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Stake tokens and commit to a blind prediction (commit-reveal)
-            </p>
-          </div>
-          <div className="rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
-            <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-              Reveal & Claim
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Reveal your prediction and claim 5x fixed-odds winnings
-            </p>
+            )}
           </div>
         </div>
 
-        {/* Instructions */}
+        {/* Tabs */}
+        {authenticated && (
+          <div className="mb-6 flex gap-2 overflow-x-auto border-b border-gray-200 dark:border-gray-700">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`px-4 py-2 font-medium transition-colors ${
+                  activeTab === tab.id
+                    ? "border-b-2 border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
+                    : "text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="space-y-6">
+          {!authenticated ? (
+            <div className="rounded-lg bg-white p-12 text-center shadow-lg dark:bg-gray-800">
+              <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">
+                Welcome to Prediction Market
+              </h2>
+              <p className="mb-6 text-gray-600 dark:text-gray-400">
+                Connect your wallet to start creating and participating in prediction markets
+              </p>
+              <button
+                onClick={handleLogin}
+                className="rounded-lg bg-indigo-600 px-6 py-3 text-lg font-semibold text-white hover:bg-indigo-700"
+              >
+                Connect Wallet
+              </button>
+            </div>
+          ) : (
+            <>
+              {activeTab === "markets" && <MarketList />}
+              {activeTab === "create" && <CreateMarket />}
+              {activeTab === "stake" && <StakeAndCommit />}
+              {activeTab === "reveal" && <RevealAndClaim />}
+              {activeTab === "claim" && <ClaimWinnings />}
+              {activeTab === "admin" && <AdminActions />}
+            </>
+          )}
+        </div>
+
+        {/* Info Section */}
         <div className="mt-8 rounded-lg bg-blue-50 p-6 dark:bg-blue-900/20">
           <h3 className="mb-4 text-lg font-semibold text-blue-900 dark:text-blue-100">
             How It Works
           </h3>
           <ol className="list-decimal space-y-2 pl-6 text-blue-800 dark:text-blue-200">
-            <li>Connect your Solana wallet</li>
-            <li>Create or browse prediction markets</li>
-            <li>Stake tokens and commit to your prediction (hidden)</li>
-            <li>After market resolves, reveal your choice</li>
-            <li>Claim 5x payout if you predicted correctly</li>
+            <li>Create a prediction market with a SOL price threshold and resolution time</li>
+            <li>Stake tokens and commit to your prediction (YES or NO) - your choice is hidden!</li>
+            <li>After the market resolves using Pyth oracle, reveal your prediction</li>
+            <li>If you predicted correctly, claim your 5x fixed-odds payout</li>
+            <li>Markets resolve automatically based on SOL/USD price from Pyth oracle</li>
           </ol>
         </div>
       </div>
