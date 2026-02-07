@@ -56,12 +56,8 @@ export default function RevealAndClaim() {
         .revealAndClaim(marketIdNum, outcomeEnum, Array.from(salt))
         .accounts({
           user: userPubkey,
-          market: marketPda,
-          marketVault: vaultPda,
-          userPosition: positionPda,
           userTokenAccount: userTokenAccount,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
+        } as any)
         .rpc();
 
       setSuccess(`Revealed and claimed! Transaction: ${tx}`);

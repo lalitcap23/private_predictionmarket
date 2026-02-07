@@ -2,7 +2,9 @@
 
 import { ReactNode } from "react";
 import { PrivyProvider } from "@privy-io/react-auth";
-import { RPC_ENDPOINT, SOLANA_CLUSTER } from "@/config/solana";
+import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
+
+const solanaConnectors = toSolanaWalletConnectors();
 
 export function SolanaWalletProvider({ children }: { children: ReactNode }) {
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || "";
@@ -37,22 +39,20 @@ export function SolanaWalletProvider({ children }: { children: ReactNode }) {
     <PrivyProvider
       appId={appId}
       config={{
-        loginMethods: ["wallet", "email", "sms", "google", "twitter", "discord", "github"],
+        loginMethods: ["wallet", "email"],
         appearance: {
           theme: "light",
           accentColor: "#6366f1",
+          walletChainType: "solana-only",
         },
         embeddedWallets: {
-          createOnLogin: "users-without-wallets",
-        },
-        solanaChains: [
-          {
-            id: SOLANA_CLUSTER === "devnet" ? "solana:devnet" : "solana:mainnet",
-            name: SOLANA_CLUSTER === "devnet" ? "Solana Devnet" : "Solana Mainnet",
-            network: SOLANA_CLUSTER === "devnet" ? "devnet" : "mainnet-beta",
-            rpcUrl: RPC_ENDPOINT,
+          solana: {
+            createOnLogin: "users-without-wallets",
           },
-        ],
+        },
+        externalWallets: {
+          solana: { connectors: solanaConnectors },
+        },
       }}
     >
       {children}

@@ -1,107 +1,115 @@
-import { Program, AnchorProvider, Idl, BN } from "@coral-xyz/anchor";
-import { Connection, PublicKey, Commitment, Transaction } from "@solana/web3.js";
-import { useWallets } from "@privy-io/react-auth";
-import { useMemo } from "react";
+"use client";
+
+import { useMemo, useRef } from "react";
+import { Program, AnchorProvider, Idl } from "@coral-xyz/anchor";
+import {
+  Connection,
+  PublicKey,
+  Transaction,
+  VersionedTransaction,
+  Commitment,
+} from "@solana/web3.js";
+import { useWallets } from "@privy-io/react-auth/solana";
+
 import idl from "./idl.json";
 import { PROGRAM_ID, RPC_ENDPOINT } from "@/config/solana";
 import { PredictionMarket } from "@/types/prediction_market";
-import { createPrivyWalletAdapter } from "./privyWalletAdapter";
 
 const commitment: Commitment = "confirmed";
 
-export function useProgram() {
-  const { wallets } = useWallets();
-  
-  // Find the first Solana wallet
-  const solanaWallet = useMemo(() => {
-    return wallets.find((w) => w.walletClientType === "privy" && w.chainId.startsWith("solana:"));
-  }, [wallets]);
+// ────────────────────────────────────────────────
+// Hooks
+// ────────────────────────────────────────────────
 
-  const program = useMemo(() => {
-    if (!solanaWallet) {
-      return null;
-    }
+/**
+ * Returns an Anchor Program client and the connected Privy Solana wallet.
+ *
+ * Uses `useWallets()` from `@privy-io/react-auth/solana` which returns
+ * `ConnectedStandardSolanaWallet[]` with real `.signTransaction()`.
+ */
+export function useProgram() {
+  const { wallets, ready } = useWallets();
+
+  // First connected Solana wallet
+  const wallet = useMemo(() => {
+    if (!ready || wallets.length === 0) return null;
+    return wallets[0];
+  }, [wallets, ready]);
+
+  // Keep a ref so the Anchor wallet adapter always calls signTransaction
+  // on the *latest* wallet object without needing to recreate the program.
+  const walletRef = useRef(wallet);
+  walletRef.current = wallet;
+
+  const program = useMemo<Program<PredictionMarket> | null>(() => {
+    if (!wallet) return null;
 
     try {
       const connection = new Connection(RPC_ENDPOINT, commitment);
-      
-      // Create Privy-compatible wallet adapter
-      const walletAdapter = createPrivyWalletAdapter(solanaWallet as any);
-      
-      // Create a custom provider that uses Privy's signAndSendTransaction
-      const provider = new AnchorProvider(
-        connection,
-        {
-          ...walletAdapter,
-          // Override sendAndConfirm to use Privy's signAndSendTransaction
-          sendAndConfirm: async (tx: Transaction, signers?: any[]) => {
-            if (walletAdapter.signAndSendTransaction) {
-              const signature = await walletAdapter.signAndSendTransaction(tx);
-              await connection.confirmTransaction(signature, commitment);
-              return signature;
-            }
-            throw new Error("signAndSendTransaction not available");
-          },
-        } as any,
-        { commitment }
-      );
 
-      // Create program instance
-      // Program constructor: new Program(idl, programId, provider)
-      const programIdPubkey = new PublicKey(PROGRAM_ID);
-      // TypeScript has issues with Program constructor types, so we use type assertion
-      const program = new (Program as any)(
+      // Anchor-compatible wallet adapter that delegates to Privy's
+      // ConnectedStandardSolanaWallet.signTransaction()
+      const anchorWallet = {
+        publicKey: new PublicKey(wallet.address),
+
+        async signTransaction<T extends Transaction | VersionedTransaction>(
+          tx: T
+        ): Promise<T> {
+          const w = walletRef.current;
+          if (!w) throw new Error("Wallet disconnected");
+
+          // Serialize → Privy signs → deserialize back
+          const serialized =
+            tx instanceof VersionedTransaction
+              ? tx.serialize()
+              : tx.serialize({
+                  requireAllSignatures: false,
+                  verifySignatures: false,
+                });
+
+          const { signedTransaction } = await w.signTransaction({
+            transaction: new Uint8Array(serialized),
+          });
+
+          if (tx instanceof VersionedTransaction) {
+            return VersionedTransaction.deserialize(signedTransaction) as T;
+          }
+          return Transaction.from(signedTransaction) as T;
+        },
+
+        async signAllTransactions<
+          T extends Transaction | VersionedTransaction,
+        >(txs: T[]): Promise<T[]> {
+          return Promise.all(txs.map((tx) => this.signTransaction(tx)));
+        },
+      };
+
+      const provider = new AnchorProvider(connection, anchorWallet as any, {
+        commitment,
+      });
+
+      return new (Program as any)(
         idl as Idl,
-        programIdPubkey,
+        new PublicKey(PROGRAM_ID),
         provider
       ) as Program<PredictionMarket>;
-
-      return program;
     } catch (error) {
-      console.error("Error creating program:", error);
+      console.error("Error creating program client:", error);
       return null;
     }
-  }, [solanaWallet]);
+  }, [wallet]);
 
-  return { program, wallet: solanaWallet };
+  return { program, wallet };
 }
 
+/** Raw @solana/web3.js Connection (no wallet needed). */
 export function useConnection() {
-  return useMemo(() => {
-    return new Connection(RPC_ENDPOINT, commitment);
-  }, []);
+  return useMemo(() => new Connection(RPC_ENDPOINT, commitment), []);
 }
 
-// Helper function to get PDAs
-export function getMarketPda(marketId: number): [PublicKey, number] {
-  const marketIdBuffer = Buffer.alloc(8);
-  marketIdBuffer.writeBigUInt64LE(BigInt(marketId));
-  
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("market"), marketIdBuffer],
-    new PublicKey(PROGRAM_ID)
-  );
-}
-
-export function getMarketVaultPda(marketId: number): [PublicKey, number] {
-  const marketIdBuffer = Buffer.alloc(8);
-  marketIdBuffer.writeBigUInt64LE(BigInt(marketId));
-  
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("vault"), marketIdBuffer],
-    new PublicKey(PROGRAM_ID)
-  );
-}
-
-export function getPositionPda(marketId: number, user: PublicKey): [PublicKey, number] {
-  const marketIdBuffer = Buffer.alloc(8);
-  marketIdBuffer.writeBigUInt64LE(BigInt(marketId));
-  
-  return PublicKey.findProgramAddressSync(
-    [Buffer.from("position"), marketIdBuffer, user.toBuffer()],
-    new PublicKey(PROGRAM_ID)
-  );
-}
+// ────────────────────────────────────────────────
+// PDA helpers (pure functions)
+// ────────────────────────────────────────────────
 
 export function getConfigPda(): [PublicKey, number] {
   return PublicKey.findProgramAddressSync(
@@ -110,3 +118,32 @@ export function getConfigPda(): [PublicKey, number] {
   );
 }
 
+export function getMarketPda(marketId: number): [PublicKey, number] {
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64LE(BigInt(marketId));
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("market"), buf],
+    new PublicKey(PROGRAM_ID)
+  );
+}
+
+export function getMarketVaultPda(marketId: number): [PublicKey, number] {
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64LE(BigInt(marketId));
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("vault"), buf],
+    new PublicKey(PROGRAM_ID)
+  );
+}
+
+export function getPositionPda(
+  marketId: number,
+  user: PublicKey
+): [PublicKey, number] {
+  const buf = Buffer.alloc(8);
+  buf.writeBigUInt64LE(BigInt(marketId));
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("position"), buf, user.toBuffer()],
+    new PublicKey(PROGRAM_ID)
+  );
+}

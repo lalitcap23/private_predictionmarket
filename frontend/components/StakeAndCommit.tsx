@@ -39,7 +39,7 @@ export default function StakeAndCommit() {
       const config = await program.account.config.fetch(configPda);
       const tokenMint = new PublicKey(config.tokenMint);
       
-      const commitmentHash = generateCommitment(marketIdNum, bettorPubkey, outcome, newSalt);
+      const commitmentHash = await generateCommitment(marketIdNum, bettorPubkey, outcome, newSalt);
       
       setSalt(newSalt);
       setCommitment(Buffer.from(commitmentHash).toString("hex"));
@@ -59,14 +59,8 @@ export default function StakeAndCommit() {
         .stakeAndCommit(marketIdNum, amountBN, Array.from(commitmentHash))
         .accounts({
           bettor: bettorPubkey,
-          config: configPda,
-          market: marketPda,
-          marketVault: vaultPda,
-          userPosition: positionPda,
           bettorTokenAccount: bettorTokenAccount,
-          tokenProgram: TOKEN_PROGRAM_ID,
-          systemProgram: PublicKey.default,
-        })
+        } as any)
         .rpc();
 
       setSuccess(`Stake committed! Transaction: ${tx}`);

@@ -44,12 +44,8 @@ export default function ClaimWinnings() {
         .claimWinnings(marketIdNum)
         .accounts({
           user: userPubkey,
-          market: marketPda,
-          marketVault: vaultPda,
-          userPosition: positionPda,
           userTokenAccount: userTokenAccount,
-          tokenProgram: TOKEN_PROGRAM_ID,
-        })
+        } as any)
         .rpc();
 
       setSuccess(`Winnings claimed! Transaction: ${tx}`);

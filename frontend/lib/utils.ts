@@ -1,62 +1,58 @@
 import { PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
-import CryptoJS from "crypto-js";
 
 /**
- * Generate commitment hash for commit-reveal scheme
+ * Generate commitment hash for commit-reveal scheme.
  * SHA256(market_id || user_pubkey || outcome_discriminant || salt)
+ *
+ * Uses the Web Crypto API (available in all modern browsers).
  */
-export function generateCommitment(
+export async function generateCommitment(
   marketId: number,
   userPubkey: PublicKey,
   outcome: "yes" | "no",
   salt: Uint8Array
-): Uint8Array {
+): Promise<Uint8Array> {
   const marketIdBytes = Buffer.alloc(8);
   marketIdBytes.writeBigUInt64LE(BigInt(marketId));
-  
+
   const outcomeByte = outcome === "yes" ? 1 : 2;
-  
-  // Concatenate all bytes
-  const combined = Buffer.concat([
-    marketIdBytes,
-    userPubkey.toBuffer(),
-    Buffer.from([outcomeByte]),
-    Buffer.from(salt)
+
+  const combined = new Uint8Array([
+    ...marketIdBytes,
+    ...userPubkey.toBuffer(),
+    outcomeByte,
+    ...salt,
   ]);
-  
-  const hash = CryptoJS.SHA256(CryptoJS.lib.WordArray.create(combined));
-  
-  return Buffer.from(hash.toString(CryptoJS.enc.Hex), "hex");
+
+  const hashBuffer = await globalThis.crypto.subtle.digest("SHA-256", combined);
+  return new Uint8Array(hashBuffer);
 }
 
-/**
- * Generate random salt
- */
+/** Generate 32 random bytes for the commitment salt. */
 export function generateSalt(): Uint8Array {
   const salt = new Uint8Array(32);
-  crypto.getRandomValues(salt);
+  globalThis.crypto.getRandomValues(salt);
   return salt;
 }
 
-/**
- * Format timestamp to readable date
- */
+/** Format a unix timestamp (seconds) to a locale string. */
 export function formatDate(timestamp: number): string {
   return new Date(timestamp * 1000).toLocaleString();
 }
 
-/**
- * Format number with commas
- */
+/** Format a number / BN with locale separators. */
 export function formatNumber(num: number | string | BN): string {
-  const n = typeof num === "string" ? parseFloat(num) : typeof num === "object" ? num.toNumber() : num;
+  const n =
+    typeof num === "string"
+      ? parseFloat(num)
+      : typeof num === "object"
+        ? num.toNumber()
+        : num;
   return n.toLocaleString();
 }
 
-/**
- * Convert outcome enum to string
- */
+/** Convert an Anchor outcome enum object to a display string. */
 export function outcomeToString(outcome: any): string {
   if (outcome === undefined || outcome === null) return "None";
   if (typeof outcome === "object") {
@@ -67,17 +63,13 @@ export function outcomeToString(outcome: any): string {
   return String(outcome);
 }
 
-/**
- * Check if user is admin
- */
+/** Check whether the connected wallet is the program admin. */
 export function isAdmin(userPubkey: PublicKey | null, config: any): boolean {
   if (!userPubkey || !config) return false;
   return userPubkey.equals(config.admin);
 }
 
-/**
- * Get market state badge color
- */
+/** Tailwind classes for a market-state badge. */
 export function getStateColor(state: string): string {
   switch (state) {
     case "active":
@@ -90,4 +82,3 @@ export function getStateColor(state: string): string {
       return "bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-200";
   }
 }
-

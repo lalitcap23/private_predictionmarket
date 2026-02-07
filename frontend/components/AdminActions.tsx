@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { useProgram, useConnection, getMarketPda, getConfigPda } from "@/lib/program";
-import { fetchPythPriceUpdate, createPythTransactionBuilder } from "@/lib/pyth";
 import { isAdmin } from "@/lib/utils";
 
 export default function AdminActions() {
@@ -56,57 +55,29 @@ export default function AdminActions() {
 
       const marketIdNum = parseInt(resolveMarketId);
       const [marketPda] = getMarketPda(marketIdNum);
-      const [configPda] = getConfigPda();
 
-      // Fetch Pyth price update data
-      const priceUpdateData = await fetchPythPriceUpdate();
-      
-      // Create Pyth transaction builder
-      const { PythSolanaReceiver } = await import("@pythnetwork/pyth-solana-receiver");
-      const pythReceiver = new PythSolanaReceiver({
-        connection,
-        wallet: {
-          publicKey: new PublicKey(wallet.address),
-          signTransaction: async (tx: any) => tx,
-          signAllTransactions: async (txs: any[]) => txs,
-        } as any,
-      });
-      
-      const txBuilder = pythReceiver.newTransactionBuilder({
-        closeUpdateAccounts: false,
-      });
-      
-      // Add price update instruction
-      await txBuilder.addPriceUpdateInstruction(priceUpdateData);
-      
-      // Get the price update account from the builder
-      // The builder should have the price update account after adding the instruction
-      const priceUpdateAccount = txBuilder.getPriceUpdateAccount();
-      
-      if (!priceUpdateAccount) {
-        throw new Error("Failed to get price update account from Pyth builder");
+      // Get Pyth price update account address from API route (NO Pyth SDK import on client!)
+      const response = await fetch("/api/pyth");
+      if (!response.ok) {
+        throw new Error("Failed to get Pyth price update account");
       }
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || "Failed to get Pyth price update account");
+      }
+      const priceUpdateAccount = new PublicKey(data.data.priceUpdateAccountAddress);
 
-      // Add resolve market instruction to the same transaction
-      const resolveIx = await program.methods
+      // Create resolve market instruction
+      // Anchor will auto-resolve config and market PDAs, we only need to specify priceUpdate
+      const tx = await program.methods
         .resolveMarket(marketIdNum, { none: {} }) // Outcome ignored, uses oracle
         .accounts({
           admin: new PublicKey(wallet.address),
-          market: marketPda,
           priceUpdate: priceUpdateAccount,
         })
-        .instruction();
+        .rpc();
 
-      txBuilder.addInstruction(resolveIx);
-
-      // Build and send transaction
-      const tx = await txBuilder.buildVersionedTransaction();
-      const signature = await wallet.signAndSendTransaction({
-        chain: wallet.chainId,
-        transaction: Array.from(tx.serialize()),
-      });
-
-      setSuccess(`Market resolved! Transaction: ${signature}`);
+      setSuccess(`Market resolved! Transaction: ${tx}`);
       setResolveMarketId("");
     } catch (err: any) {
       console.error("Error resolving market:", err);
@@ -141,8 +112,6 @@ export default function AdminActions() {
         .cancelMarket(marketIdNum)
         .accounts({
           admin: new PublicKey(wallet.address),
-          config: configPda,
-          market: marketPda,
         })
         .rpc();
 
