@@ -1,9 +1,11 @@
 "use client";
 
-import { usePrivy } from "@privy-io/react-auth";
+import { useWallet } from "@solana/wallet-adapter-react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useProgram, useConnection, getConfigPda } from "@/lib/program";
 import { useState, useEffect } from "react";
 import { PublicKey } from "@solana/web3.js";
+import Initialize from "@/components/Initialize";
 import MarketList from "@/components/MarketList";
 import CreateMarket from "@/components/CreateMarket";
 import StakeAndCommit from "@/components/StakeAndCommit";
@@ -11,12 +13,14 @@ import RevealAndClaim from "@/components/RevealAndClaim";
 import ClaimWinnings from "@/components/ClaimWinnings";
 import AdminActions from "@/components/AdminActions";
 
-type Tab = "markets" | "create" | "stake" | "reveal" | "claim" | "admin";
+import { PROGRAM_ID, SOLANA_CLUSTER, RPC_ENDPOINT } from "@/config/solana";
+
+type Tab = "initialize" | "markets" | "create" | "stake" | "reveal" | "claim" | "admin";
 
 export default function Home() {
-  const { ready, authenticated, login, logout } = usePrivy();
-  const { program, wallet } = useProgram();
-  const connection = useConnection();
+  const { publicKey, connected } = useWallet();
+  const { program } = useProgram();
+  const { connection } = useConnection();
 
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(false);
@@ -24,8 +28,7 @@ export default function Home() {
   const [balance, setBalance] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("markets");
 
-  // wallet is a ConnectedStandardSolanaWallet — .address is a string
-  const walletAddress = wallet?.address;
+  const walletAddress = publicKey?.toBase58();
 
   // ── Load on-chain config ──
   useEffect(() => {
@@ -37,6 +40,8 @@ export default function Home() {
         setConfig(await program.account.config.fetch(configPda));
       } catch (err) {
         console.error("Error loading config:", err);
+        // If config doesn't exist, show initialize tab
+        setActiveTab("initialize");
       } finally {
         setLoading(false);
       }
@@ -45,29 +50,33 @@ export default function Home() {
 
   // ── Load SOL balance ──
   useEffect(() => {
-    if (!walletAddress || !connection) {
+    if (!publicKey || !connection) {
       setBalance(null);
       return;
     }
     connection
-      .getBalance(new PublicKey(walletAddress))
+      .getBalance(publicKey)
       .then((b) => setBalance(b / 1e9))
       .catch((err) => console.error("Error loading balance:", err));
-  }, [walletAddress, connection]);
+  }, [publicKey, connection]);
 
   // ── Tabs ──
-  const tabs: { id: Tab; label: string }[] = [
-    { id: "markets", label: "Markets" },
-    { id: "create", label: "Create Market" },
-    { id: "stake", label: "Stake & Commit" },
-    { id: "reveal", label: "Reveal & Claim" },
-    { id: "claim", label: "Claim Winnings" },
-  ];
+  const tabs: { id: Tab; label: string }[] = [];
+  
+  // Show initialize tab if config doesn't exist
+  if (!config) {
+    tabs.push({ id: "initialize", label: "⚠️ Initialize Program" });
+  } else {
+    tabs.push(
+      { id: "markets", label: "Markets" },
+      { id: "create", label: "Create Market" },
+      { id: "stake", label: "Stake & Commit" },
+      { id: "reveal", label: "Reveal & Claim" },
+      { id: "claim", label: "Claim Winnings" }
+    );
+  }
 
-  const isUserAdmin =
-    config &&
-    walletAddress &&
-    new PublicKey(walletAddress).equals(config.admin);
+  const isUserAdmin = config && publicKey && publicKey.equals(config.admin);
 
   if (isUserAdmin && !tabs.find((t) => t.id === "admin")) {
     tabs.push({ id: "admin", label: "Admin" });
@@ -103,27 +112,8 @@ export default function Home() {
               </div>
             )}
 
-            {ready && !authenticated && (
-              <button
-                onClick={() => {
-                  setError(null);
-                  login();
-                }}
-                disabled={!ready}
-                className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700 disabled:opacity-50"
-              >
-                Connect Wallet
-              </button>
-            )}
-
-            {ready && authenticated && (
-              <button
-                onClick={logout}
-                className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-              >
-                Disconnect
-              </button>
-            )}
+            {/* Solana Wallet Adapter Button */}
+            <WalletMultiButton />
           </div>
         </header>
 
@@ -151,12 +141,12 @@ export default function Home() {
                 </span>
                 <span
                   className={`font-semibold ${
-                    authenticated && walletAddress
+                    connected && walletAddress
                       ? "text-green-600"
                       : "text-red-600"
                   }`}
                 >
-                  {authenticated && walletAddress
+                  {connected && walletAddress
                     ? "Connected"
                     : "Not Connected"}
                 </span>
@@ -199,10 +189,53 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {/* Debug Info */}
+          <div className="mt-4 border-t border-gray-200 pt-4 dark:border-gray-700">
+            <details className="cursor-pointer">
+              <summary className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                🔍 Debug Info (Click to expand)
+              </summary>
+              <div className="mt-2 space-y-1 rounded bg-gray-50 p-3 font-mono text-xs dark:bg-gray-900">
+                <div>
+                  <span className="text-gray-600 dark:text-gray-400">Cluster:</span>{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">
+                    {SOLANA_CLUSTER}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-600 dark:text-gray-400">RPC:</span>{" "}
+                  <span className="text-gray-900 dark:text-white">{RPC_ENDPOINT}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600 dark:text-gray-400">Program ID:</span>{" "}
+                  <a
+                    href={explorerUrl(PROGRAM_ID)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline dark:text-indigo-400"
+                  >
+                    {PROGRAM_ID}
+                  </a>
+                </div>
+                <div>
+                  <span className="text-gray-600 dark:text-gray-400">Config PDA:</span>{" "}
+                  <a
+                    href={explorerUrl(getConfigPda()[0].toString())}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-indigo-600 hover:underline dark:text-indigo-400"
+                  >
+                    {getConfigPda()[0].toString()}
+                  </a>
+                </div>
+              </div>
+            </details>
+          </div>
         </div>
 
         {/* ── Tabs ── */}
-        {authenticated && (
+        {connected && (
           <div className="mb-6 flex gap-2 overflow-x-auto border-b border-gray-200 dark:border-gray-700">
             {tabs.map((tab) => (
               <button
@@ -222,24 +255,20 @@ export default function Home() {
 
         {/* ── Content ── */}
         <div className="space-y-6">
-          {!authenticated ? (
+          {!connected ? (
             <div className="rounded-lg bg-white p-12 text-center shadow-lg dark:bg-gray-800">
               <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">
                 Welcome to Prediction Market
               </h2>
               <p className="mb-6 text-gray-600 dark:text-gray-400">
-                Connect your wallet to start creating and participating in
+                Connect your Solana wallet to start creating and participating in
                 prediction markets
               </p>
-              <button
-                onClick={() => login()}
-                className="rounded-lg bg-indigo-600 px-6 py-3 text-lg font-semibold text-white hover:bg-indigo-700"
-              >
-                Connect Wallet
-              </button>
+              <WalletMultiButton />
             </div>
           ) : (
             <>
+              {activeTab === "initialize" && <Initialize />}
               {activeTab === "markets" && <MarketList />}
               {activeTab === "create" && <CreateMarket />}
               {activeTab === "stake" && <StakeAndCommit />}

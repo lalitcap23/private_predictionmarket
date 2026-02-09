@@ -30,7 +30,8 @@ export default function StakeAndCommit() {
       setError(null);
       setSuccess(null);
 
-      const bettorPubkey = new PublicKey(wallet.address);
+      if (!wallet.publicKey) throw new Error("Wallet not connected");
+      const bettorPubkey = wallet.publicKey;
       const marketIdNum = parseInt(marketId);
       
       // Generate salt and commitment

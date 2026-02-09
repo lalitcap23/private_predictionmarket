@@ -43,7 +43,7 @@ export default function AdminActions() {
       return;
     }
 
-    if (!isAdmin(new PublicKey(wallet.address), config)) {
+    if (!wallet.publicKey || !isAdmin(wallet.publicKey, config)) {
       setError("Only admin can resolve markets");
       return;
     }
@@ -72,7 +72,7 @@ export default function AdminActions() {
       const tx = await program.methods
         .resolveMarket(marketIdNum, { none: {} }) // Outcome ignored, uses oracle
         .accounts({
-          admin: new PublicKey(wallet.address),
+          admin: wallet.publicKey,
           priceUpdate: priceUpdateAccount,
         })
         .rpc();
@@ -94,7 +94,7 @@ export default function AdminActions() {
       return;
     }
 
-    if (!isAdmin(new PublicKey(wallet.address), config)) {
+    if (!wallet.publicKey || !isAdmin(wallet.publicKey, config)) {
       setError("Only admin can cancel markets");
       return;
     }
@@ -111,7 +111,7 @@ export default function AdminActions() {
       const tx = await program.methods
         .cancelMarket(marketIdNum)
         .accounts({
-          admin: new PublicKey(wallet.address),
+          admin: wallet.publicKey,
         })
         .rpc();
 
@@ -125,7 +125,7 @@ export default function AdminActions() {
     }
   };
 
-  if (!config || !isAdmin(wallet ? new PublicKey(wallet.address) : null, config)) {
+  if (!config || !wallet.publicKey || !isAdmin(wallet.publicKey, config)) {
     return null;
   }
 

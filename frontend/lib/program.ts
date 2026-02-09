@@ -1,18 +1,12 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useMemo } from "react";
 import { Program, AnchorProvider, Idl } from "@coral-xyz/anchor";
-import {
-  Connection,
-  PublicKey,
-  Transaction,
-  VersionedTransaction,
-  Commitment,
-} from "@solana/web3.js";
-import { useWallets } from "@privy-io/react-auth/solana";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import { PublicKey, Commitment } from "@solana/web3.js";
 
 import idl from "./idl.json";
-import { PROGRAM_ID, RPC_ENDPOINT } from "@/config/solana";
+import { PROGRAM_ID } from "@/config/solana";
 import { PredictionMarket } from "@/types/prediction_market";
 
 const commitment: Commitment = "confirmed";
@@ -22,90 +16,44 @@ const commitment: Commitment = "confirmed";
 // ────────────────────────────────────────────────
 
 /**
- * Returns an Anchor Program client and the connected Privy Solana wallet.
- *
- * Uses `useWallets()` from `@privy-io/react-auth/solana` which returns
- * `ConnectedStandardSolanaWallet[]` with real `.signTransaction()`.
+ * Returns an Anchor Program client using the Solana Wallet Adapter.
+ * program is null until a wallet is connected.
  */
 export function useProgram() {
-  const { wallets, ready } = useWallets();
-
-  // First connected Solana wallet
-  const wallet = useMemo(() => {
-    if (!ready || wallets.length === 0) return null;
-    return wallets[0];
-  }, [wallets, ready]);
-
-  // Keep a ref so the Anchor wallet adapter always calls signTransaction
-  // on the *latest* wallet object without needing to recreate the program.
-  const walletRef = useRef(wallet);
-  walletRef.current = wallet;
+  const { connection } = useConnection();
+  const wallet = useWallet();
 
   const program = useMemo<Program<PredictionMarket> | null>(() => {
-    if (!wallet) return null;
+    if (!wallet.publicKey || !wallet.signTransaction) return null;
 
     try {
-      const connection = new Connection(RPC_ENDPOINT, commitment);
-
-      // Anchor-compatible wallet adapter that delegates to Privy's
-      // ConnectedStandardSolanaWallet.signTransaction()
-      const anchorWallet = {
-        publicKey: new PublicKey(wallet.address),
-
-        async signTransaction<T extends Transaction | VersionedTransaction>(
-          tx: T
-        ): Promise<T> {
-          const w = walletRef.current;
-          if (!w) throw new Error("Wallet disconnected");
-
-          // Serialize → Privy signs → deserialize back
-          const serialized =
-            tx instanceof VersionedTransaction
-              ? tx.serialize()
-              : tx.serialize({
-                  requireAllSignatures: false,
-                  verifySignatures: false,
-                });
-
-          const { signedTransaction } = await w.signTransaction({
-            transaction: new Uint8Array(serialized),
-          });
-
-          if (tx instanceof VersionedTransaction) {
-            return VersionedTransaction.deserialize(signedTransaction) as T;
-          }
-          return Transaction.from(signedTransaction) as T;
-        },
-
-        async signAllTransactions<
-          T extends Transaction | VersionedTransaction,
-        >(txs: T[]): Promise<T[]> {
-          return Promise.all(txs.map((tx) => this.signTransaction(tx)));
-        },
-      };
-
-      const provider = new AnchorProvider(connection, anchorWallet as any, {
+      // Wallet adapter already implements the correct interface for Anchor
+      const provider = new AnchorProvider(connection, wallet as any, {
         commitment,
       });
 
-      return new (Program as any)(
+      const programId = new PublicKey(PROGRAM_ID);
+      console.log("Creating program with ID:", programId.toString());
+      console.log("Connected to RPC:", connection.rpcEndpoint);
+
+      return new Program(
         idl as Idl,
-        new PublicKey(PROGRAM_ID),
+        programId,
         provider
       ) as Program<PredictionMarket>;
     } catch (error) {
       console.error("Error creating program client:", error);
       return null;
     }
-  }, [wallet]);
+  }, [connection, wallet]);
 
   return { program, wallet };
 }
 
-/** Raw @solana/web3.js Connection (no wallet needed). */
-export function useConnection() {
-  return useMemo(() => new Connection(RPC_ENDPOINT, commitment), []);
-}
+/**
+ * Re-export useConnection for convenience
+ */
+export { useConnection };
 
 // ────────────────────────────────────────────────
 // PDA helpers (pure functions)

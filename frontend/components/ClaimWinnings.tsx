@@ -24,7 +24,8 @@ export default function ClaimWinnings() {
       setError(null);
       setSuccess(null);
 
-      const userPubkey = new PublicKey(wallet.address);
+      if (!wallet.publicKey) throw new Error("Wallet not connected");
+      const userPubkey = wallet.publicKey;
       const marketIdNum = parseInt(marketId);
       
       const [marketPda] = getMarketPda(marketIdNum);

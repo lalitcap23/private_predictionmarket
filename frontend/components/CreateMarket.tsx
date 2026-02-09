@@ -29,7 +29,8 @@ export default function CreateMarket() {
       setError(null);
       setSuccess(null);
 
-      const creatorPubkey = new PublicKey(wallet.address);
+      if (!wallet.publicKey) throw new Error("Wallet not connected");
+      const creatorPubkey = wallet.publicKey;
       const [configPda] = getConfigPda();
       const config = await program.account.config.fetch(configPda);
       
