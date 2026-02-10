@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, SystemProgram, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { useProgram, useConnection, getMarketPda, getMarketVaultPda, getConfigPda } from "@/lib/program";
-import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from "@solana/spl-token";
+import {
+  TOKEN_PROGRAM_ID,
+  ASSOCIATED_TOKEN_PROGRAM_ID,
+  getAssociatedTokenAddress,
+  createAssociatedTokenAccountInstruction,
+} from "@solana/spl-token";
 
 export default function CreateMarket() {
   const { program, wallet } = useProgram();
-  const connection = useConnection();
+  const { connection } = useConnection();
   const [question, setQuestion] = useState("");
   const [resolutionTime, setResolutionTime] = useState("");
   const [feeAmount, setFeeAmount] = useState("");
@@ -46,33 +51,53 @@ export default function CreateMarket() {
         creatorPubkey
       );
       
+      const feeRecipientPubkey = new PublicKey(config.feeRecipient);
       const feeRecipientTokenAccount = await getAssociatedTokenAddress(
         tokenMint,
-        config.feeRecipient
+        feeRecipientPubkey
       );
 
-      // Parse inputs
+      // Fee recipient's token account must exist before createMarket (program sends fee there).
+      // If it doesn't exist, create it in the same tx via preInstruction.
+      const feeRecipientAtaInfo = await connection.getAccountInfo(feeRecipientTokenAccount);
+      const preInstructions: any[] = [];
+      if (!feeRecipientAtaInfo) {
+        preInstructions.push(
+          createAssociatedTokenAccountInstruction(
+            creatorPubkey,           // payer
+            feeRecipientTokenAccount,
+            feeRecipientPubkey,     // owner
+            tokenMint
+          )
+        );
+      }
+
+      // Parse inputs: resolution_time (i64), fee_amount (u64), price_threshold (i64)
       const resolutionTimestamp = Math.floor(new Date(resolutionTime).getTime() / 1000);
-      const feeAmountBN = new BN(parseFloat(feeAmount) * 1e9); // Assuming 9 decimals
-      // Price threshold: convert USD price to Pyth format (with exponent -8)
-      // Example: $160 = 160 * 10^8 = 16000000000
-      const priceThresholdBN = new BN(parseFloat(priceThreshold) * 1e8);
+      const feeAmountRaw = Math.floor(parseFloat(feeAmount) * 1e9);
+      const priceThresholdRaw = Math.floor(parseFloat(priceThreshold) * 1e8);
 
       const tx = await program.methods
         .createMarket(
           question,
           new BN(resolutionTimestamp),
-          feeAmountBN,
-          priceThresholdBN
+          new BN(feeAmountRaw),
+          new BN(priceThresholdRaw)
         )
         .accounts({
           creator: creatorPubkey,
+          config: configPda,
           market: marketPda,
           marketVault: vaultPda,
           tokenMint: tokenMint,
           creatorTokenAccount: creatorTokenAccount,
           feeRecipientTokenAccount: feeRecipientTokenAccount,
-        })
+          tokenProgram: TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+          rent: SYSVAR_RENT_PUBKEY,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        } as any)
+        .preInstructions(preInstructions)
         .rpc();
 
       setSuccess(`Market created! Transaction: ${tx}`);

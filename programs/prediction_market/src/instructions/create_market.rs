@@ -4,7 +4,7 @@ use anchor_spl::token::{transfer, Token, TokenAccount, Transfer};
 use crate::constants::{MAX_QUESTION_LENGTH, SOL_USD_FEED_ID};
 use crate::error::PredictionMarketError;
 use crate::state::{Config, Market, MarketState, Outcome};
-
+ use anchor_spl::associated_token::AssociatedToken; 
 #[derive(Accounts)]
 pub struct CreateMarket<'info> {
     #[account(mut)]
@@ -46,8 +46,9 @@ pub struct CreateMarket<'info> {
 
     /// Creator's token account (for fee payment)
     #[account(
-        mut,
-        token::mint = token_mint,
+        init_if_needed,
+        payer = creator,   
+     token::mint = token_mint,
         token::authority = creator
     )]
     pub creator_token_account: Account<'info, TokenAccount>,
@@ -61,6 +62,10 @@ pub struct CreateMarket<'info> {
 
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,   
+    pub associated_token_program: Program<'info, AssociatedToken>,
+    
+
 }
 
 pub fn handler(
