@@ -1,11 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { Program, AnchorProvider, Idl } from "@coral-xyz/anchor";
+import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import { useConnection, useWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, Commitment } from "@solana/web3.js";
 
-import idl from "./idl.json";
+import idlData from "../idl.json";
 import { PROGRAM_ID } from "@/config/solana";
 import { PredictionMarket } from "@/types/prediction_market";
 
@@ -35,12 +35,15 @@ export function useProgram() {
       const programId = new PublicKey(PROGRAM_ID);
       console.log("Creating program with ID:", programId.toString());
       console.log("Connected to RPC:", connection.rpcEndpoint);
+      console.log("IDL loaded:", !!idlData);
 
-      return new Program(
-        idl as Idl,
-        programId,
+      // Create program using the IDL directly
+      const program = new Program(
+        idlData as any,
         provider
-      ) as Program<PredictionMarket>;
+      );
+
+      return program as Program<PredictionMarket>;
     } catch (error) {
       console.error("Error creating program client:", error);
       return null;
