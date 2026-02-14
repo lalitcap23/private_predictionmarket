@@ -2,16 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { PublicKey } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
 import { useProgram, useConnection, getMarketPda, getConfigPda } from "@/lib/program";
 import { isAdmin } from "@/lib/utils";
 
 export default function AdminActions() {
   const { program, wallet } = useProgram();
-  const connection = useConnection();
+  const { connection } = useConnection();
   const [config, setConfig] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Update config
+  const [newFeeRecipient, setNewFeeRecipient] = useState("");
+  const [newMaxFeeBps, setNewMaxFeeBps] = useState("");
   
   // Resolve market
   const [resolveMarketId, setResolveMarketId] = useState("");
@@ -70,7 +75,7 @@ export default function AdminActions() {
       // Create resolve market instruction
       // Anchor will auto-resolve config and market PDAs, we only need to specify priceUpdate
       const tx = await program.methods
-        .resolveMarket(marketIdNum, { none: {} }) // Outcome ignored, uses oracle
+        .resolveMarket(new BN(marketIdNum), { none: {} }) // Outcome ignored, uses oracle
         .accounts({
           admin: wallet.publicKey,
           priceUpdate: priceUpdateAccount,
@@ -109,7 +114,7 @@ export default function AdminActions() {
       const [configPda] = getConfigPda();
 
       const tx = await program.methods
-        .cancelMarket(marketIdNum)
+        .cancelMarket(new BN(marketIdNum))
         .accounts({
           admin: wallet.publicKey,
         })
@@ -125,8 +130,69 @@ export default function AdminActions() {
     }
   };
 
-  if (!config || !wallet.publicKey || !isAdmin(wallet.publicKey, config)) {
-    return null;
+  const handleUpdateConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!program || !wallet?.publicKey || !isAdmin(wallet.publicKey, config)) {
+      setError("Only admin can update config");
+      return;
+    }
+    if (!newFeeRecipient.trim()) {
+      setError("Enter a fee recipient wallet address");
+      return;
+    }
+    try {
+      setLoading(true);
+      setError(null);
+      setSuccess(null);
+      const [configPda] = getConfigPda();
+      const feeRecipientPubkey = new PublicKey(newFeeRecipient.trim());
+      const maxFeeBpsNum = newMaxFeeBps ? parseInt(newMaxFeeBps, 10) : config.maxFeeBps;
+      if (maxFeeBpsNum > 10000) {
+        setError("Max fee must be ≤ 10000 (100%)");
+        setLoading(false);
+        return;
+      }
+      const tx = await program.methods
+        .updateConfig(feeRecipientPubkey, maxFeeBpsNum)
+        .accounts({
+          admin: wallet.publicKey,
+          config: configPda,
+        } as any)
+        .rpc();
+      setSuccess(`Config updated! Fee recipient set to ${newFeeRecipient.slice(0, 8)}... Transaction: ${tx}`);
+      setNewFeeRecipient("");
+      setNewMaxFeeBps("");
+      await loadConfig();
+    } catch (err: any) {
+      console.error("Error updating config:", err);
+      setError(err?.message || "Failed to update config");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!config) {
+    return (
+      <div className="rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
+        <p className="text-gray-600 dark:text-gray-400">Loading config...</p>
+      </div>
+    );
+  }
+
+  if (!wallet?.publicKey || !isAdmin(wallet.publicKey, config)) {
+    return (
+      <div className="rounded-lg bg-white p-6 shadow-lg dark:bg-gray-800">
+        <h2 className="mb-4 text-2xl font-bold text-gray-900 dark:text-white">Admin</h2>
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+          <p className="text-amber-800 dark:text-amber-200">
+            Connect with the <strong>program admin wallet</strong> to resolve markets, cancel markets, and update config.
+          </p>
+          <p className="mt-2 text-sm text-amber-700 dark:text-amber-300">
+            Admin: <code className="break-all text-xs">{config.admin?.toBase58?.() ?? String(config.admin)}</code>
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -148,6 +214,49 @@ export default function AdminActions() {
       )}
 
       <div className="space-y-6">
+        {/* Update Config - fix fee recipient if it was set to a PDA */}
+        <form onSubmit={handleUpdateConfig} className="space-y-4 rounded-lg border border-amber-200 bg-amber-50/50 p-4 dark:border-amber-800 dark:bg-amber-900/20">
+          <h3 className="text-lg font-semibold text-amber-900 dark:text-amber-100">
+            Update config (e.g. fix fee recipient)
+          </h3>
+          <p className="text-sm text-amber-800 dark:text-amber-200">
+            Fee recipient must be a regular wallet address. Current: <code className="break-all text-xs">{config?.feeRecipient?.toString?.() ?? "—"}</code>
+          </p>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              New fee recipient (wallet address)
+            </label>
+            <input
+              type="text"
+              value={newFeeRecipient}
+              onChange={(e) => setNewFeeRecipient(e.target.value)}
+              placeholder="e.g. 5YXbYQCnBSTX3fmYbuGNSbY3J24v5KRZ11aWh856WWc3"
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 font-mono text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Max fee (basis points, optional — leave blank to keep current)
+            </label>
+            <input
+              type="number"
+              value={newMaxFeeBps}
+              onChange={(e) => setNewMaxFeeBps(e.target.value)}
+              placeholder={String(config?.maxFeeBps ?? 100)}
+              min="0"
+              max="10000"
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded-lg bg-amber-600 px-4 py-2 font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+          >
+            {loading ? "Updating..." : "Update fee recipient"}
+          </button>
+        </form>
+
         {/* Resolve Market */}
         <form onSubmit={handleResolveMarket} className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">

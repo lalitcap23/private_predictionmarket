@@ -12,3 +12,9 @@ pub const SOL_USD_FEED_ID: [u8; 32] = [
     0x2a, 0x0d, 0x2f, 0x8e, 0xd0, 0xc6, 0xc7, 0xbc,
     0x0f, 0x4c, 0xfa, 0xc8, 0xc2, 0x80, 0xb5, 0x6d,
 ];
+
+/// Allowed creators for markets (whitelist)
+pub const ALLOWED_CREATORS: [&str; 2] = [
+    "5YXbYQCnBSTX3fmYbuGNSbY3J24v5KRZ11aWh856WWc3",
+    "455q3UD1KkfMP7zWrd2XcYoZW8LaVoiU969cmusengZ9",
+];

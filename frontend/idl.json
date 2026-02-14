@@ -254,9 +254,7 @@
           "name": "creator_token_account",
           "docs": [
             "Creator's token account (for fee payment)"
-          ],
-          "writable": true,
-          "signer": true
+          ]
         },
         {
           "name": "fee_recipient_token_account",
@@ -486,15 +484,14 @@
           ]
         },
         {
+          "name": "fee_recipient"
+        },
+        {
           "name": "system_program",
           "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
-        {
-          "name": "fee_recipient",
-          "type": "pubkey"
-        },
         {
           "name": "max_fee_bps",
           "type": "u16"
@@ -1220,131 +1217,141 @@
     },
     {
       "code": 6003,
+      "name": "UnauthorizedCreator",
+      "msg": "Creator not authorized to create markets"
+    },
+    {
+      "code": 6004,
       "name": "InvalidFee",
       "msg": "Invalid fee percentage"
     },
     {
-      "code": 6004,
+      "code": 6005,
+      "name": "InvalidFeeRecipient",
+      "msg": "Fee recipient must be a regular wallet (system account), not a PDA"
+    },
+    {
+      "code": 6006,
       "name": "InvalidResolutionTime",
       "msg": "Invalid resolution time"
     },
     {
-      "code": 6005,
+      "code": 6007,
       "name": "EmptyQuestion",
       "msg": "Empty question"
     },
     {
-      "code": 6006,
+      "code": 6008,
       "name": "QuestionTooLong",
       "msg": "Question too long"
     },
     {
-      "code": 6007,
+      "code": 6009,
       "name": "MarketNotFound",
       "msg": "Market not found"
     },
     {
-      "code": 6008,
+      "code": 6010,
       "name": "MarketNotActive",
       "msg": "Market not active"
     },
     {
-      "code": 6009,
+      "code": 6011,
       "name": "MarketAlreadyFinalized",
       "msg": "Market already finalized"
     },
     {
-      "code": 6010,
+      "code": 6012,
       "name": "MarketNotFinalized",
       "msg": "Market not finalized"
     },
     {
-      "code": 6011,
+      "code": 6013,
       "name": "MarketExpired",
       "msg": "Market expired"
     },
     {
-      "code": 6012,
+      "code": 6014,
       "name": "MarketNotExpired",
       "msg": "Market not expired"
     },
     {
-      "code": 6013,
+      "code": 6015,
       "name": "InvalidOutcome",
       "msg": "Invalid outcome"
     },
     {
-      "code": 6014,
+      "code": 6016,
       "name": "NoOpposition",
       "msg": "No opposition in market"
     },
     {
-      "code": 6015,
+      "code": 6017,
       "name": "ZeroAmount",
       "msg": "Zero amount"
     },
     {
-      "code": 6016,
+      "code": 6018,
       "name": "NoPosition",
       "msg": "No position"
     },
     {
-      "code": 6017,
+      "code": 6019,
       "name": "AlreadyClaimed",
       "msg": "Already claimed"
     },
     {
-      "code": 6018,
+      "code": 6020,
       "name": "Overflow",
       "msg": "Overflow error"
     },
     {
-      "code": 6019,
+      "code": 6021,
       "name": "AlreadyCommitted",
       "msg": "User has already committed in this market"
     },
     {
-      "code": 6020,
+      "code": 6022,
       "name": "NotCommitted",
       "msg": "User has not committed in this market"
     },
     {
-      "code": 6021,
+      "code": 6023,
       "name": "AlreadyRevealed",
       "msg": "User has already revealed in this market"
     },
     {
-      "code": 6022,
+      "code": 6024,
       "name": "InvalidCommitment",
       "msg": "Invalid commitment reveal data"
     },
     {
-      "code": 6023,
+      "code": 6025,
       "name": "RevealDeadlineExpired",
       "msg": "Reveal deadline has passed"
     },
     {
-      "code": 6024,
+      "code": 6026,
       "name": "RevealDeadlineNotPassed",
       "msg": "Reveal deadline has not passed yet"
     },
     {
-      "code": 6025,
+      "code": 6027,
       "name": "NoUnrevealedStakes",
       "msg": "No unrevealed stakes to forfeit"
     },
     {
-      "code": 6026,
+      "code": 6028,
       "name": "PythPriceUpdateRequired",
       "msg": "Pyth price update account required for oracle-based markets"
     },
     {
-      "code": 6027,
+      "code": 6029,
       "name": "PythPriceTooOld",
       "msg": "Pyth price update is too old"
     },
     {
-      "code": 6028,
+      "code": 6030,
       "name": "PythFeedIdMismatch",
       "msg": "Pyth price feed ID mismatch"
     }

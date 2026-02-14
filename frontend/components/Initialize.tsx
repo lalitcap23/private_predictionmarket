@@ -32,13 +32,14 @@ export default function Initialize() {
       const maxFeeBpsNum = parseInt(maxFeeBps);
 
       const tx = await program.methods
-        .initialize(feeRecipientPubkey, maxFeeBpsNum)
+        .initialize(maxFeeBpsNum)
         .accounts({
           admin: wallet.publicKey,
           config: configPda,
           tokenMint: tokenMintPubkey,
+          feeRecipient: feeRecipientPubkey,
           systemProgram: SystemProgram.programId,
-        })
+        } as any)
         .rpc();
 
       setSuccess(`Program initialized! Transaction: ${tx}`);

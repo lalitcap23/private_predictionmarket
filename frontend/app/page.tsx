@@ -14,6 +14,7 @@ import ClaimWinnings from "@/components/ClaimWinnings";
 import AdminActions from "@/components/AdminActions";
 
 import { PROGRAM_ID, SOLANA_CLUSTER, RPC_ENDPOINT } from "@/config/solana";
+import { isAdmin } from "@/lib/utils";
 
 type Tab = "initialize" | "markets" | "create" | "stake" | "reveal" | "claim" | "admin";
 
@@ -27,8 +28,14 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [balance, setBalance] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>("markets");
+  const [mounted, setMounted] = useState(false);
 
   const walletAddress = publicKey?.toBase58();
+
+  // Avoid hydration mismatch: WalletMultiButton renders different HTML on server vs client
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // ── Load on-chain config ──
   useEffect(() => {
@@ -72,15 +79,12 @@ export default function Home() {
       { id: "create", label: "Create Market" },
       { id: "stake", label: "Stake & Commit" },
       { id: "reveal", label: "Reveal & Claim" },
-      { id: "claim", label: "Claim Winnings" }
+      { id: "claim", label: "Claim Winnings" },
+      { id: "admin", label: "Admin" }
     );
   }
 
-  const isUserAdmin = config && publicKey && publicKey.equals(config.admin);
-
-  if (isUserAdmin && !tabs.find((t) => t.id === "admin")) {
-    tabs.push({ id: "admin", label: "Admin" });
-  }
+  const isUserAdmin = config && publicKey && isAdmin(publicKey, config);
 
   const cluster = process.env.NEXT_PUBLIC_SOLANA_CLUSTER || "devnet";
   const explorerUrl = (addr: string) =>
@@ -112,8 +116,12 @@ export default function Home() {
               </div>
             )}
 
-            {/* Solana Wallet Adapter Button */}
-            <WalletMultiButton />
+            {/* Solana Wallet Adapter Button - only render on client to avoid hydration mismatch */}
+            {mounted ? (
+              <WalletMultiButton />
+            ) : (
+              <div className="wallet-adapter-button wallet-adapter-button-trigger h-10 min-w-[max-content] rounded-lg px-4 py-2 text-sm font-medium" />
+            )}
           </div>
         </header>
 
@@ -264,7 +272,11 @@ export default function Home() {
                 Connect your Solana wallet to start creating and participating in
                 prediction markets
               </p>
-              <WalletMultiButton />
+              {mounted ? (
+                <WalletMultiButton />
+              ) : (
+                <div className="wallet-adapter-button wallet-adapter-button-trigger mx-auto h-10 min-w-[max-content] rounded-lg px-4 py-2 text-sm font-medium" />
+              )}
             </div>
           ) : (
             <>

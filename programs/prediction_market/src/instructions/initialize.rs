@@ -22,13 +22,23 @@ pub struct Initialize<'info> {
     /// The SPL token mint for betting
     pub token_mint: Account<'info, Mint>,
 
+    /// CHECK: Validated in handler: must be a system-owned account (wallet) so ATAs can be created for it.
+    pub fee_recipient: AccountInfo<'info>,
+
     pub system_program: Program<'info, System>,
 }
 
-pub fn handler(ctx: Context<Initialize>, fee_recipient: Pubkey, max_fee_bps: u16) -> Result<()> {
+pub fn handler(ctx: Context<Initialize>, max_fee_bps: u16) -> Result<()> {
     require!(
         max_fee_bps <= MAX_FEE_LIMIT,
         PredictionMarketError::InvalidFee
+    );
+
+    let fee_recipient = ctx.accounts.fee_recipient.key();
+    // Fee recipient must be a wallet (system account), not a PDA, so ATAs can be created for it.
+    require!(
+        ctx.accounts.fee_recipient.owner == &ctx.accounts.system_program.key(),
+        PredictionMarketError::InvalidFeeRecipient
     );
 
     let config = &mut ctx.accounts.config;

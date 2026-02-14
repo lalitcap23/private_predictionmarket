@@ -63,10 +63,26 @@ export function outcomeToString(outcome: any): string {
   return String(outcome);
 }
 
+/** Convert an Anchor market state enum object to a string (active | resolved | cancelled). */
+export function stateToString(state: any): string {
+  if (state === undefined || state === null) return "unknown";
+  if (typeof state === "string") return state;
+  if (typeof state === "object") {
+    if ("active" in state) return "active";
+    if ("resolved" in state) return "resolved";
+    if ("cancelled" in state) return "cancelled";
+  }
+  return String(state);
+}
+
 /** Check whether the connected wallet is the program admin. */
 export function isAdmin(userPubkey: PublicKey | null, config: any): boolean {
   if (!userPubkey || !config) return false;
-  return userPubkey.equals(config.admin);
+  const adminKey = config.admin;
+  if (!adminKey) return false;
+  const userStr = userPubkey.toBase58();
+  const adminStr = typeof adminKey === "string" ? adminKey : adminKey.toBase58?.() ?? String(adminKey);
+  return userStr === adminStr;
 }
 
 /** Tailwind classes for a market-state badge. */

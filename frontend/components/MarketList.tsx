@@ -3,8 +3,16 @@
 import { useState, useEffect } from "react";
 import { PublicKey } from "@solana/web3.js";
 import { useProgram, useConnection, getMarketPda } from "@/lib/program";
-import { formatDate, outcomeToString, getStateColor } from "@/lib/utils";
+import { formatDate, formatNumber, outcomeToString, getStateColor, stateToString } from "@/lib/utils";
 import { BN } from "@coral-xyz/anchor";
+
+function toNum(v: any): number {
+  if (v == null) return 0;
+  if (typeof v === "number" && !Number.isNaN(v)) return v;
+  if (BN.isBN(v)) return v.toNumber();
+  const n = Number(v);
+  return Number.isNaN(n) ? 0 : n;
+}
 
 interface Market {
   id: number;
@@ -64,8 +72,8 @@ export default function MarketList() {
       const results = await Promise.all(marketPromises);
       const validMarkets = results.filter((m) => m !== null) as Market[];
       
-      // Sort by creation time (newest first)
-      validMarkets.sort((a, b) => b.createdAt - a.createdAt);
+      // Sort by creation time (newest first) — normalize BN to number for sort
+      validMarkets.sort((a, b) => toNum(b.createdAt) - toNum(a.createdAt));
       
       setMarkets(validMarkets);
     } catch (err: any) {
@@ -128,7 +136,7 @@ export default function MarketList() {
         <div className="space-y-4">
           {markets.map((market) => (
             <div
-              key={market.id}
+              key={toNum(market.id)}
               className="rounded-lg border border-gray-200 p-4 dark:border-gray-700"
             >
               <div className="mb-3 flex items-start justify-between">
@@ -137,23 +145,23 @@ export default function MarketList() {
                     {market.question}
                   </h3>
                   <div className="flex flex-wrap gap-2 text-sm text-gray-600 dark:text-gray-400">
-                    <span>ID: {market.id}</span>
+                    <span>ID: {toNum(market.id)}</span>
                     <span>•</span>
-                    <span>Created: {formatDate(market.createdAt)}</span>
+                    <span>Created: {formatDate(toNum(market.createdAt))}</span>
                     <span>•</span>
-                    <span>Resolves: {formatDate(market.resolutionTime)}</span>
+                    <span>Resolves: {formatDate(toNum(market.resolutionTime))}</span>
                   </div>
                 </div>
                 <span
                   className={`rounded-full px-3 py-1 text-xs font-semibold ${getStateColor(
-                    market.state
+                    stateToString(market.state)
                   )}`}
                 >
-                  {market.state.toUpperCase()}
+                  {stateToString(market.state).toUpperCase()}
                 </span>
               </div>
 
-              {market.state === "resolved" && (
+              {stateToString(market.state) === "resolved" && (
                 <div className="mb-2">
                   <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                     Winner:{" "}
@@ -168,20 +176,20 @@ export default function MarketList() {
                 <div>
                   <span className="text-gray-600 dark:text-gray-400">YES Pool: </span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {market.yesPool.toString()}
+                    {formatNumber(market.yesPool)}
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-600 dark:text-gray-400">NO Pool: </span>
                   <span className="font-medium text-gray-900 dark:text-white">
-                    {market.noPool.toString()}
+                    {formatNumber(market.noPool)}
                   </span>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <a
-                  href={getExplorerUrl(market.id)}
+                  href={getExplorerUrl(toNum(market.id))}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400"

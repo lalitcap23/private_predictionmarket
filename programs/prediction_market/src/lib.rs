@@ -16,12 +16,8 @@ pub mod prediction_market {
     use super::*;
 
     /// Initialize the prediction market program
-    pub fn initialize(
-        ctx: Context<Initialize>,
-        fee_recipient: Pubkey,
-        max_fee_bps: u16,
-    ) -> Result<()> {
-        instructions::initialize::handler(ctx, fee_recipient, max_fee_bps)
+    pub fn initialize(ctx: Context<Initialize>, max_fee_bps: u16) -> Result<()> {
+        instructions::initialize::handler(ctx, max_fee_bps)
     }
 
     /// Update the global configuration (admin only)

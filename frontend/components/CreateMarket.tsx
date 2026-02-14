@@ -16,7 +16,7 @@ export default function CreateMarket() {
   const { connection } = useConnection();
   const [question, setQuestion] = useState("");
   const [resolutionTime, setResolutionTime] = useState("");
-  const [feeAmount, setFeeAmount] = useState("");
+  const [feeAmount, setFeeAmount] = useState("0");
   const [priceThreshold, setPriceThreshold] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,16 +57,40 @@ export default function CreateMarket() {
         feeRecipientPubkey
       );
 
-      // Fee recipient's token account must exist before createMarket (program sends fee there).
-      // If it doesn't exist, create it in the same tx via preInstruction.
+      // ATA program only allows system-owned accounts (wallets) as ATA owners, not PDAs.
+      const feeRecipientAccountInfo = await connection.getAccountInfo(feeRecipientPubkey);
+      if (feeRecipientAccountInfo && !feeRecipientAccountInfo.owner.equals(SystemProgram.programId)) {
+        setError(
+          "Fee recipient is set to a program account (PDA), not a wallet. " +
+          "Fix: go to the Admin tab → \"Update config\" → set \"New fee recipient\" to a wallet address (e.g. 5YXbYQCnBSTX3fmYbuGNSbY3J24v5KRZ11aWh856WWc3 or 455q3UD1KkfMP7zWrd2XcYoZW8LaVoiU969cmusengZ9) and click Update. You must be the program admin."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Both token accounts must exist before createMarket. Create them if needed via preInstructions.
+      const creatorAtaInfo = await connection.getAccountInfo(creatorTokenAccount);
       const feeRecipientAtaInfo = await connection.getAccountInfo(feeRecipientTokenAccount);
       const preInstructions: any[] = [];
+      
+      if (!creatorAtaInfo) {
+        preInstructions.push(
+          createAssociatedTokenAccountInstruction(
+            creatorPubkey,           // payer
+            creatorTokenAccount,     // ATA to create
+            creatorPubkey,           // owner
+            tokenMint
+          )
+        );
+      }
+      
+      // Only create fee recipient ATA if it's a system account (checked above) and doesn't exist yet.
       if (!feeRecipientAtaInfo) {
         preInstructions.push(
           createAssociatedTokenAccountInstruction(
             creatorPubkey,           // payer
             feeRecipientTokenAccount,
-            feeRecipientPubkey,     // owner
+            feeRecipientPubkey,     // owner (must be a wallet, not PDA)
             tokenMint
           )
         );
@@ -114,7 +138,18 @@ export default function CreateMarket() {
       }, 2000);
     } catch (err: any) {
       console.error("Error creating market:", err);
-      setError(err?.message || "Failed to create market");
+      const msg = err?.message || "";
+      if (msg.includes("Provided owner is not allowed") || msg.includes("owner is not allowed")) {
+        setError(
+          "Fee recipient must be a wallet address. Go to Admin tab → Update config → set \"New fee recipient\" to your wallet and click Update. You must be the admin."
+        );
+      } else if (msg.includes("insufficient funds") || msg.includes("0x1")) {
+        setError(
+          "Insufficient token balance for the creation fee. Use Creation Fee = 0 to create without paying a fee, or add Wrapped SOL to your wallet."
+        );
+      } else {
+        setError(msg || "Failed to create market");
+      }
     } finally {
       setLoading(false);
     }
@@ -197,11 +232,14 @@ export default function CreateMarket() {
             step="0.001"
             value={feeAmount}
             onChange={(e) => setFeeAmount(e.target.value)}
-            placeholder="e.g., 0.1"
+            placeholder="0 = no fee"
             className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
             required
             min="0"
           />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Use 0 for no fee. If you set a fee, you need enough Wrapped SOL in your wallet.
+          </p>
         </div>
 
         <button

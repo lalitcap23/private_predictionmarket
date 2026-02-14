@@ -260,8 +260,7 @@ export type PredictionMarket = {
           "name": "creatorTokenAccount",
           "docs": [
             "Creator's token account (for fee payment)"
-          ],
-          "writable": true
+          ]
         },
         {
           "name": "feeRecipientTokenAccount",
@@ -277,6 +276,14 @@ export type PredictionMarket = {
         {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
         }
       ],
       "args": [
@@ -1217,131 +1224,136 @@ export type PredictionMarket = {
     },
     {
       "code": 6003,
+      "name": "unauthorizedCreator",
+      "msg": "Creator not authorized to create markets"
+    },
+    {
+      "code": 6004,
       "name": "invalidFee",
       "msg": "Invalid fee percentage"
     },
     {
-      "code": 6004,
+      "code": 6005,
       "name": "invalidResolutionTime",
       "msg": "Invalid resolution time"
     },
     {
-      "code": 6005,
+      "code": 6006,
       "name": "emptyQuestion",
       "msg": "Empty question"
     },
     {
-      "code": 6006,
+      "code": 6007,
       "name": "questionTooLong",
       "msg": "Question too long"
     },
     {
-      "code": 6007,
+      "code": 6008,
       "name": "marketNotFound",
       "msg": "Market not found"
     },
     {
-      "code": 6008,
+      "code": 6009,
       "name": "marketNotActive",
       "msg": "Market not active"
     },
     {
-      "code": 6009,
+      "code": 6010,
       "name": "marketAlreadyFinalized",
       "msg": "Market already finalized"
     },
     {
-      "code": 6010,
+      "code": 6011,
       "name": "marketNotFinalized",
       "msg": "Market not finalized"
     },
     {
-      "code": 6011,
+      "code": 6012,
       "name": "marketExpired",
       "msg": "Market expired"
     },
     {
-      "code": 6012,
+      "code": 6013,
       "name": "marketNotExpired",
       "msg": "Market not expired"
     },
     {
-      "code": 6013,
+      "code": 6014,
       "name": "invalidOutcome",
       "msg": "Invalid outcome"
     },
     {
-      "code": 6014,
+      "code": 6015,
       "name": "noOpposition",
       "msg": "No opposition in market"
     },
     {
-      "code": 6015,
+      "code": 6016,
       "name": "zeroAmount",
       "msg": "Zero amount"
     },
     {
-      "code": 6016,
+      "code": 6017,
       "name": "noPosition",
       "msg": "No position"
     },
     {
-      "code": 6017,
+      "code": 6018,
       "name": "alreadyClaimed",
       "msg": "Already claimed"
     },
     {
-      "code": 6018,
+      "code": 6019,
       "name": "overflow",
       "msg": "Overflow error"
     },
     {
-      "code": 6019,
+      "code": 6020,
       "name": "alreadyCommitted",
       "msg": "User has already committed in this market"
     },
     {
-      "code": 6020,
+      "code": 6021,
       "name": "notCommitted",
       "msg": "User has not committed in this market"
     },
     {
-      "code": 6021,
+      "code": 6022,
       "name": "alreadyRevealed",
       "msg": "User has already revealed in this market"
     },
     {
-      "code": 6022,
+      "code": 6023,
       "name": "invalidCommitment",
       "msg": "Invalid commitment reveal data"
     },
     {
-      "code": 6023,
+      "code": 6024,
       "name": "revealDeadlineExpired",
       "msg": "Reveal deadline has passed"
     },
     {
-      "code": 6024,
+      "code": 6025,
       "name": "revealDeadlineNotPassed",
       "msg": "Reveal deadline has not passed yet"
     },
     {
-      "code": 6025,
+      "code": 6026,
       "name": "noUnrevealedStakes",
       "msg": "No unrevealed stakes to forfeit"
     },
     {
-      "code": 6026,
+      "code": 6027,
       "name": "pythPriceUpdateRequired",
       "msg": "Pyth price update account required for oracle-based markets"
     },
     {
-      "code": 6027,
+      "code": 6028,
       "name": "pythPriceTooOld",
       "msg": "Pyth price update is too old"
     },
     {
-      "code": 6028,
+      "code": 6029,
       "name": "pythFeedIdMismatch",
       "msg": "Pyth price feed ID mismatch"
     }

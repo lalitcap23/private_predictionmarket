@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{transfer, Token, TokenAccount, Transfer};
 
-use crate::constants::{MAX_QUESTION_LENGTH, SOL_USD_FEED_ID};
+use crate::constants::{ALLOWED_CREATORS, MAX_QUESTION_LENGTH, SOL_USD_FEED_ID};
 use crate::error::PredictionMarketError;
 use crate::state::{Config, Market, MarketState, Outcome};
  use anchor_spl::associated_token::AssociatedToken; 
@@ -46,9 +46,7 @@ pub struct CreateMarket<'info> {
 
     /// Creator's token account (for fee payment)
     #[account(
-        init_if_needed,
-        payer = creator,   
-     token::mint = token_mint,
+        token::mint = token_mint,
         token::authority = creator
     )]
     pub creator_token_account: Account<'info, TokenAccount>,
@@ -75,6 +73,13 @@ pub fn handler(
     fee_amount: u64,
     price_threshold: i64,
 ) -> Result<()> {
+    // Check if creator is whitelisted
+    let creator_key = ctx.accounts.creator.key();
+    let is_allowed = ALLOWED_CREATORS.iter().any(|&allowed| {
+        creator_key.to_string() == allowed
+    });
+    require!(is_allowed, PredictionMarketError::UnauthorizedCreator);
+
     // Validations
     require!(!question.is_empty(), PredictionMarketError::EmptyQuestion);
     require!(

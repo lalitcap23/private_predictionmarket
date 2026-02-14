@@ -8,8 +8,12 @@ pub enum PredictionMarketError {
     NotPaused,
     #[msg("Invalid admin")]
     InvalidAdmin,
+    #[msg("Creator not authorized to create markets")]
+    UnauthorizedCreator,
     #[msg("Invalid fee percentage")]
     InvalidFee,
+    #[msg("Fee recipient must be a regular wallet (system account), not a PDA")]
+    InvalidFeeRecipient,
     #[msg("Invalid resolution time")]
     InvalidResolutionTime,
     #[msg("Empty question")]
