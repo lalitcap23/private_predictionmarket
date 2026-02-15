@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, VersionedTransaction } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { useProgram, useConnection, getMarketPda, getConfigPda } from "@/lib/program";
 import { isAdmin } from "@/lib/utils";
@@ -20,7 +20,8 @@ export default function AdminActions() {
   
   // Resolve market
   const [resolveMarketId, setResolveMarketId] = useState("");
-  
+  const [resolveMarketResolutionTime, setResolveMarketResolutionTime] = useState<number | null>(null);
+
   // Cancel market
   const [cancelMarketId, setCancelMarketId] = useState("");
 
@@ -29,6 +30,29 @@ export default function AdminActions() {
       loadConfig();
     }
   }, [program, wallet]);
+
+  // When resolve market ID changes, fetch that market's resolution time for hint
+  useEffect(() => {
+    if (!program) return;
+    const id = parseInt(resolveMarketId, 10);
+    if (!resolveMarketId || Number.isNaN(id) || id < 1) {
+      setResolveMarketResolutionTime(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const [marketPda] = getMarketPda(id);
+        const market = await program.account.market.fetch(marketPda) as any;
+        const rt = market?.resolutionTime ?? market?.resolution_time;
+        const resTime = rt != null ? (typeof rt === "number" ? rt : rt?.toNumber?.() ?? Number(rt)) : null;
+        if (!cancelled) setResolveMarketResolutionTime(resTime);
+      } catch {
+        if (!cancelled) setResolveMarketResolutionTime(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [program, resolveMarketId]);
 
   const loadConfig = async () => {
     if (!program) return;
@@ -59,34 +83,63 @@ export default function AdminActions() {
       setSuccess(null);
 
       const marketIdNum = parseInt(resolveMarketId);
-      const [marketPda] = getMarketPda(marketIdNum);
 
-      // Get Pyth price update account address from API route (NO Pyth SDK import on client!)
-      const response = await fetch("/api/pyth");
-      if (!response.ok) {
-        throw new Error("Failed to get Pyth price update account");
-      }
+      // Build combined tx (post Pyth price update + resolve) on server; we sign and send
+      const response = await fetch("/api/pyth/build-resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          marketId: marketIdNum,
+          adminAddress: wallet.publicKey.toBase58(),
+        }),
+      });
       const data = await response.json();
       if (!data.success) {
-        throw new Error(data.error || "Failed to get Pyth price update account");
+        throw new Error(data.error || "Failed to build resolve transaction");
       }
-      const priceUpdateAccount = new PublicKey(data.data.priceUpdateAccountAddress);
 
-      // Create resolve market instruction
-      // Anchor will auto-resolve config and market PDAs, we only need to specify priceUpdate
-      const tx = await program.methods
-        .resolveMarket(new BN(marketIdNum), { none: {} }) // Outcome ignored, uses oracle
-        .accounts({
-          admin: wallet.publicKey,
-          priceUpdate: priceUpdateAccount,
-        })
-        .rpc();
+      const transactions: string[] = data.data?.transactions ?? [];
+      if (transactions.length === 0) {
+        throw new Error("No transactions returned");
+      }
 
-      setSuccess(`Market resolved! Transaction: ${tx}`);
+      function base64ToUint8Array(b64: string): Uint8Array {
+        const bin = atob(b64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return arr;
+      }
+
+      let lastSignature: string | null = null;
+      for (const serialized of transactions) {
+        const tx = VersionedTransaction.deserialize(
+          base64ToUint8Array(serialized)
+        );
+        const signed = await wallet.signTransaction!(tx);
+        const sig = await connection.sendRawTransaction(signed.serialize(), {
+          skipPreflight: false,
+          preflightCommitment: "confirmed",
+        });
+        await connection.confirmTransaction(sig, "confirmed");
+        lastSignature = sig;
+      }
+
+      setSuccess(
+        lastSignature
+          ? `Market resolved! Transaction: ${lastSignature}`
+          : "Market resolved!"
+      );
       setResolveMarketId("");
     } catch (err: any) {
       console.error("Error resolving market:", err);
-      setError(err?.message || "Failed to resolve market. Make sure the market has expired and Pyth price update is available.");
+      const msg = err?.message ?? "";
+      const isNotExpired =
+        /MarketNotExpired|Market not expired|0x177e|6014/i.test(msg);
+      setError(
+        isNotExpired
+          ? "Market not expired. You can only resolve after the market’s resolution time has passed. Check the market’s resolution time and try again later."
+          : msg || "Failed to resolve market. Ensure the market has expired and try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -278,6 +331,13 @@ export default function AdminActions() {
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               Uses Pyth oracle to determine winner
             </p>
+            {resolveMarketResolutionTime != null && (
+              <p className="mt-1 text-xs text-gray-600 dark:text-gray-300">
+                {Date.now() / 1000 >= resolveMarketResolutionTime
+                  ? "Resolvable now"
+                  : `Resolvable after: ${new Date(resolveMarketResolutionTime * 1000).toLocaleString("en-US", { timeZone: "UTC" })} UTC`}
+              </p>
+            )}
           </div>
           <button
             type="submit"

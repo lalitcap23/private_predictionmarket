@@ -15,19 +15,24 @@ const hermesClient = new HermesClient("https://hermes.pyth.network/", {});
  */
 export async function GET() {
   try {
-    // Fetch price update data
-    const priceUpdateData = await hermesClient.getLatestPriceUpdates(
+    // Fetch price update data from Hermes (binary.data is string[] of base64)
+    const priceUpdateResponse = await hermesClient.getLatestPriceUpdates(
       [SOL_USD_FEED_ID],
       { encoding: "base64" }
     );
 
+    const priceUpdateDataArray = priceUpdateResponse?.binary?.data;
+    if (!priceUpdateDataArray || !Array.isArray(priceUpdateDataArray) || priceUpdateDataArray.length === 0) {
+      throw new Error("Hermes returned no price update data for SOL/USD");
+    }
+
     const connection = new Connection(RPC_ENDPOINT, "confirmed");
-    
-    // Create a minimal wallet adapter for Pyth receiver
+
+    // Dummy wallet only used to build the tx and derive account address (we don't send)
     const dummyWallet = {
       publicKey: PublicKey.default,
-      signTransaction: async (tx: any) => tx,
-      signAllTransactions: async (txs: any[]) => txs,
+      signTransaction: async (tx: unknown) => tx,
+      signAllTransactions: async (txs: unknown[]) => txs,
     };
 
     const pythReceiver = new PythSolanaReceiver({
@@ -35,48 +40,15 @@ export async function GET() {
       wallet: dummyWallet as any,
     });
 
-    const txBuilder = pythReceiver.newTransactionBuilder({
+    const transactionBuilder = pythReceiver.newTransactionBuilder({
       closeUpdateAccounts: false,
     });
 
-    // Add price update instruction
-    const builder = txBuilder as any;
-    if (typeof builder.addPriceUpdateInstruction === "function") {
-      await builder.addPriceUpdateInstruction(priceUpdateData.binary.data);
-    } else if (typeof builder.addPriceUpdate === "function") {
-      await builder.addPriceUpdate(priceUpdateData.binary.data);
-    } else {
-      throw new Error("Pyth SDK method not found");
-    }
+    // Post price updates (SDK: addPostPriceUpdates(priceUpdateDataArray: string[]))
+    await transactionBuilder.addPostPriceUpdates(priceUpdateDataArray);
 
-    // Get the price update account
-    let priceUpdateAccount: PublicKey | null = null;
-    
-    if (typeof builder.getPriceUpdateAccount === "function") {
-      priceUpdateAccount = builder.getPriceUpdateAccount();
-    }
-    
-    if (!priceUpdateAccount) {
-      // Fallback: derive from transaction
-      const txResults = await builder.buildVersionedTransactions();
-      if (!txResults || txResults.length === 0) {
-        throw new Error("Failed to build Pyth transaction");
-      }
-      
-      const tx = txResults[0]?.tx || txResults[0];
-      const accountKeys = tx.message?.staticAccountKeys || [];
-      
-      for (const account of accountKeys) {
-        if (!account.equals(PublicKey.default)) {
-          priceUpdateAccount = account;
-          break;
-        }
-      }
-    }
-    
-    if (!priceUpdateAccount) {
-      throw new Error("Failed to extract price update account");
-    }
+    // Get the SOL/USD price update account address (must match feed id we requested)
+    const priceUpdateAccount = transactionBuilder.getPriceUpdateAccount(SOL_USD_FEED_ID);
 
     return NextResponse.json({
       success: true,
