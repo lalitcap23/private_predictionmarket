@@ -6,7 +6,7 @@ export const SOLANA_CLUSTER: Cluster =
 export const PROGRAM_ID = 
   process.env.NEXT_PUBLIC_PROGRAM_ID || 
   (SOLANA_CLUSTER === "devnet" 
-    ? "6nPzFvBm1Eezmoa82w82XX3L6qNy1StVXDMf7QnF8zv"
+    ? "6CY8YgqAoXq66baW5B41Yw72D7unQjFN3wuMkZr2bCRM"
     : "GF2HqG2UJWmB7YPGsyqAg1p5wWaRpufKfp9anM7oWTet");
 
 export const RPC_ENDPOINT = 

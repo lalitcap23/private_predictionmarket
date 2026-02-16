@@ -9,7 +9,7 @@ pub use constants::*;
 pub use instructions::*;
 pub use state::*;
 
-declare_id!("5jRd4dAToWZAMPrhJS2HaCUDtaY5AYCSbtY3KRW1soDL");
+declare_id!("6CY8YgqAoXq66baW5B41Yw72D7unQjFN3wuMkZr2bCRM");
 
 #[program]
 pub mod prediction_market {

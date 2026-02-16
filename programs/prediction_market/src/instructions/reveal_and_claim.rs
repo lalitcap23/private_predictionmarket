@@ -102,13 +102,11 @@ pub fn handler(
     position.revealed = true;
     position.revealed_outcome = outcome;
 
-    // Fixed odds payout: 5x on correct prediction, 0 on incorrect
+    // Fixed odds payout: 1x (refund stake) on correct prediction, 0 on incorrect
     let mut payout: u64 = 0;
     if market.winning_outcome == outcome {
-        payout = position
-            .committed_amount
-            .checked_mul(5)
-            .ok_or(PredictionMarketError::Overflow)?;
+        // Winner simply gets back their committed stake
+        payout = position.committed_amount;
     }
 
     // Mark as claimed to prevent double-claim, even if payout is zero

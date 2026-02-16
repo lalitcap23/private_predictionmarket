@@ -54,7 +54,7 @@ export default function RevealAndClaim() {
       const outcomeEnum = outcome === "yes" ? { yes: {} } : { no: {} };
 
       const tx = await program.methods
-        .revealAndClaim(marketIdNum, outcomeEnum, Array.from(salt))
+        .revealAndClaim(new BN(marketIdNum), outcomeEnum, Array.from(salt))
         .accounts({
           user: userPubkey,
           userTokenAccount: userTokenAccount,
@@ -158,7 +158,7 @@ export default function RevealAndClaim() {
           disabled={loading || !program || !wallet}
           className="w-full rounded-lg bg-indigo-600 px-4 py-2 font-semibold text-white hover:bg-indigo-700 disabled:opacity-50"
         >
-          {loading ? "Revealing..." : "Reveal & Claim (5x if correct)"}
+          {loading ? "Revealing..." : "Reveal & Claim (1x refund if correct)"}
         </button>
       </form>
     </div>

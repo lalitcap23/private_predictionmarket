@@ -10,13 +10,12 @@ import MarketList from "@/components/MarketList";
 import CreateMarket from "@/components/CreateMarket";
 import StakeAndCommit from "@/components/StakeAndCommit";
 import RevealAndClaim from "@/components/RevealAndClaim";
-import ClaimWinnings from "@/components/ClaimWinnings";
 import AdminActions from "@/components/AdminActions";
 
 import { PROGRAM_ID, SOLANA_CLUSTER, RPC_ENDPOINT } from "@/config/solana";
 import { isAdmin } from "@/lib/utils";
 
-type Tab = "initialize" | "markets" | "create" | "stake" | "reveal" | "claim" | "admin";
+type Tab = "initialize" | "markets" | "create" | "stake" | "reveal" | "admin";
 
 export default function Home() {
   const { publicKey, connected } = useWallet();
@@ -79,7 +78,6 @@ export default function Home() {
       { id: "create", label: "Create Market" },
       { id: "stake", label: "Stake & Commit" },
       { id: "reveal", label: "Reveal & Claim" },
-      { id: "claim", label: "Claim Winnings" },
       { id: "admin", label: "Admin" }
     );
   }
@@ -285,7 +283,6 @@ export default function Home() {
               {activeTab === "create" && <CreateMarket />}
               {activeTab === "stake" && <StakeAndCommit />}
               {activeTab === "reveal" && <RevealAndClaim />}
-              {activeTab === "claim" && <ClaimWinnings />}
               {activeTab === "admin" && <AdminActions />}
             </>
           )}
