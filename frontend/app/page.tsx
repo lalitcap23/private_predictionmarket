@@ -293,27 +293,57 @@ export default function Home() {
           <h3 className="mb-4 text-lg font-semibold text-blue-900 dark:text-blue-100">
             How It Works
           </h3>
-          <ol className="list-decimal space-y-2 pl-6 text-blue-800 dark:text-blue-200">
-            <li>
-              Create a prediction market with a SOL price threshold and
-              resolution time
-            </li>
-            <li>
-              Stake tokens and commit to your prediction (YES or NO) -- your
-              choice is hidden!
-            </li>
-            <li>
-              After the market resolves using Pyth oracle, reveal your
-              prediction
-            </li>
-            <li>
-              If you predicted correctly, claim your 5x fixed-odds payout
-            </li>
-            <li>
-              Markets resolve automatically based on SOL/USD price from Pyth
-              oracle
-            </li>
-          </ol>
+          <div className="space-y-4 text-blue-800 dark:text-blue-200">
+            <div className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                1
+              </span>
+              <div>
+                <p className="font-semibold">Create Market</p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Admin creates a market with a question, SOL price threshold, and resolution time
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                2
+              </span>
+              <div>
+                <p className="font-semibold">Stake & Commit (Private)</p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Stake wSOL and commit your hidden prediction. Your choice is encrypted as a hash — no one can see it until you reveal!
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                3
+              </span>
+              <div>
+                <p className="font-semibold">Market Resolves</p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  After resolution time, admin resolves using Pyth oracle. Market compares SOL/USD price to threshold to determine winner
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-600 text-sm font-bold text-white">
+                4
+              </span>
+              <div>
+                <p className="font-semibold">Reveal & Claim</p>
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  Reveal your prediction using your saved salt. If you predicted correctly, you get your stake back (1x refund). Wrong predictions lose their stake.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 rounded-lg bg-blue-100 p-3 dark:bg-blue-800/50">
+            <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+              🔒 Privacy: Your prediction is hidden until reveal, preventing front-running and manipulation
+            </p>
+          </div>
         </div>
       </div>
     </div>
