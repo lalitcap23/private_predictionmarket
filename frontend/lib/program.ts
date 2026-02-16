@@ -43,7 +43,7 @@ export function useProgram() {
         provider
       );
 
-      return program as Program<PredictionMarket>;
+      return program as unknown as Program<PredictionMarket>;
     } catch (error) {
       console.error("Error creating program client:", error);
       return null;

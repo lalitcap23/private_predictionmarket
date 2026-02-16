@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { PublicKey } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
 import { useProgram, getMarketPda, getMarketVaultPda, getPositionPda, getConfigPda } from "@/lib/program";
 import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from "@solana/spl-token";
 
@@ -42,7 +43,7 @@ export default function ClaimWinnings() {
       );
 
       const tx = await program.methods
-        .claimWinnings(marketIdNum)
+        .claimWinnings(new BN(marketIdNum))
         .accounts({
           user: userPubkey,
           userTokenAccount: userTokenAccount,
