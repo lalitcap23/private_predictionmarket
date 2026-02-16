@@ -92,10 +92,7 @@ NEXT_PUBLIC_PROGRAM_ID="6CY8YgqAoXq66baW5B41Yw72D7unQjFN3wuMkZr2bCRM"
 
 1. Push repo to GitHub
 2. Import in Vercel → Set root directory to `frontend/`
-3. Add environment variables:
-   - `NEXT_PUBLIC_SOLANA_CLUSTER=devnet`
-   - `NEXT_PUBLIC_RPC_ENDPOINT=https://api.devnet.solana.com`
-   - `NEXT_PUBLIC_PROGRAM_ID=6CY8YgqAoXq66baW5B41Yw72D7unQjFN3wuMkZr2bCRM`
+3. Add environment variables
 4. Deploy
 
 ## Important Notes
