@@ -56,14 +56,6 @@ npm install
 npm run dev
 ```
 
-Set `frontend/.env`:
-
-```env
-NEXT_PUBLIC_SOLANA_CLUSTER="devnet"
-NEXT_PUBLIC_RPC_ENDPOINT="https://api.devnet.solana.com"
-NEXT_PUBLIC_PROGRAM_ID="6CY8YgqAoXq66baW5B41Yw72D7unQjFN3wuMkZr2bCRM"
-```
-
 ### First Time Setup
 
 1. Connect wallet → **Initialize** tab → Initialize config
